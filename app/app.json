@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Time Trip Track App",
-    "slug": "time-trip-track-app",
+    "name": "Hand Mine Control",
+    "slug": "hand-mine-control",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "timetriptrack",
+    "scheme": "handminecontrol",
     "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.timetrip.trackapp"
+      "bundleIdentifier": "com.handminecontrol.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.timetrip.trackapp"
+      "package": "com.handminecontrol.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
