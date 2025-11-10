@@ -40,7 +40,7 @@ export default function Register() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 bg-gray-50">
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingVertical: 60, paddingHorizontal: 24 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
         <View className="items-center mb-8">
           <Image
             source={require('../assets/mine.png')}

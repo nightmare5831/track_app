@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { View, ActivityIndicator, Text } from 'react-native';
 import { useAppStore } from '../store/useAppStore';
 import '../global.css';
 
 export default function RootLayout() {
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const isLoading = useAppStore((state) => state.isLoading);
   const checkAuth = useAppStore((state) => state.checkAuth);
   const segments = useSegments();
   const router = useRouter();
@@ -14,6 +16,9 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    // Don't navigate while still loading
+    if (isLoading) return;
+
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && segments[0] !== 'login' && segments[0] !== 'register') {
@@ -21,7 +26,17 @@ export default function RootLayout() {
     } else if (isAuthenticated && (segments[0] === 'login' || segments[0] === 'register')) {
       router.replace('/');
     }
-  }, [isAuthenticated, segments]);
+  }, [isAuthenticated, segments, isLoading]);
+
+  // Show loading screen while checking auth
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text className="mt-4 text-gray-600">Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <Stack>

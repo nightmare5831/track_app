@@ -19,7 +19,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  isLoading: false,
+  isLoading: true, // Start with loading true to show splash/loading screen
   token: null,
   user: null,
   isAuthenticated: false,
@@ -39,11 +39,19 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   checkAuth: async () => {
-    const token = await AsyncStorage.getItem('authToken');
-    const userStr = await AsyncStorage.getItem('user');
-    if (token && userStr) {
-      const user = JSON.parse(userStr);
-      set({ token, user, isAuthenticated: true });
+    set({ isLoading: true }); // Set loading when checking auth
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      const userStr = await AsyncStorage.getItem('user');
+      if (token && userStr) {
+        const user = JSON.parse(userStr);
+        set({ token, user, isAuthenticated: true, isLoading: false });
+      } else {
+        set({ isLoading: false });
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      set({ isLoading: false, isAuthenticated: false });
     }
   },
 }));
