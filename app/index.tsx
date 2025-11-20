@@ -8,7 +8,7 @@ import { useAppStore } from '../store/useAppStore';
 import Request from '../lib/request';
 import { Card, Badge } from '../components/ui';
 import { theme } from '../theme';
-import { Activity, User as UserType, Material } from '../types';
+import { Activity, User as UserType, Material, Operation } from '../types';
 
 export default function Home() {
   const router = useRouter();
@@ -17,6 +17,7 @@ export default function Home() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [stoppedOperations, setStoppedOperations] = useState<Operation[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -34,15 +35,25 @@ export default function Home() {
   const fetchData = async () => {
     try {
       setDataLoading(true);
-      const [activitiesRes, usersRes, materialsRes] = await Promise.all([
+      const [activitiesRes, usersRes, materialsRes, operationsRes] = await Promise.all([
         Request.Get('/activities'),
         Request.Get('/users'),
-        Request.Get('/materials')
+        Request.Get('/materials'),
+        Request.Get('/operations')
       ]);
 
       if (activitiesRes.success) setActivities(activitiesRes.data);
       if (usersRes.success) setUsers(usersRes.data);
       if (materialsRes.success) setMaterials(materialsRes.data);
+      if (operationsRes.success) {
+        // Filter stopped operations (those with endTime)
+        const stopped = operationsRes.data.filter((op: Operation) => op.endTime);
+        // Sort by endTime descending (most recent first)
+        stopped.sort((a: Operation, b: Operation) =>
+          new Date(b.endTime!).getTime() - new Date(a.endTime!).getTime()
+        );
+        setStoppedOperations(stopped);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -86,6 +97,8 @@ export default function Home() {
               const response = await Request.Post(`/operations/${operationId}/stop`, { distance: 0 });
               if (response.success) {
                 removeActiveOperation(operationId);
+                // Refresh stopped operations list
+                fetchData();
               }
             } catch (error) {
               console.error('Error stopping operation:', error);
@@ -95,6 +108,11 @@ export default function Home() {
         }
       ]
     );
+  };
+
+  const handleEditOperation = (operation: Operation) => {
+    Alert.alert('Edit Operation', 'Edit functionality coming soon');
+    // TODO: Navigate to edit screen or show edit modal
   };
 
   const handleRecreateOperation = async (activeOp: any) => {
@@ -134,17 +152,25 @@ export default function Home() {
               <Text style={styles.headerTitle}>{APP_NAME}</Text>
               {user && <Text style={styles.headerSubtitle}>Welcome, {user.name}</Text>}
             </View>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              {user?.role === 'administrator' && (
+                <TouchableOpacity style={styles.adminButton} onPress={() => router.push('/admin')}>
+                  <Ionicons name="stats-chart" size={20} color={theme.colors.primary} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
         <View style={styles.content}>
+          {/* Active Operations Section */}
           {activeOperations.length > 0 && (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Active Operations</Text>
+                <Text style={styles.sectionTitle}>Current Activity</Text>
                 <Badge label={activeOperations.length.toString()} variant="primary" size="sm" />
               </View>
 
@@ -219,6 +245,83 @@ export default function Home() {
                 );
               })}
             </>
+          )}
+
+          {/* Stopped Operations Section */}
+          {stoppedOperations.length > 0 && (
+            <>
+              <View style={[styles.sectionHeader, { marginTop: activeOperations.length > 0 ? theme.spacing.lg : 0 }]}>
+                <Text style={styles.sectionTitle}>Recent Activities</Text>
+                <Badge label={stoppedOperations.length.toString()} variant="secondary" size="sm" />
+              </View>
+
+              {stoppedOperations.map((operation) => {
+                const activityId = typeof operation.activity === 'string' ? operation.activity : (operation.activity as any)?._id;
+                const activity = activities.find(a => a._id === activityId);
+                const operatorId = typeof operation.operator === 'string' ? operation.operator : (operation.operator as any)?._id;
+                const operator = users.find(u => u._id === operatorId);
+                const materialId = typeof operation.material === 'string' ? operation.material : (operation.material as any)?._id;
+                const material = materialId ? materials.find(m => m._id === materialId) : null;
+                const equipmentId = typeof operation.equipment === 'string' ? operation.equipment : (operation.equipment as any)?._id;
+
+                // Calculate duration
+                const duration = operation.endTime && operation.startTime
+                  ? Math.floor((new Date(operation.endTime).getTime() - new Date(operation.startTime).getTime()) / 1000)
+                  : 0;
+
+                return (
+                  <Card
+                    key={operation._id}
+                    variant="flat"
+                    padding="sm"
+                  >
+                    <View style={styles.operationCard}>
+                      <View style={styles.operationIcon}>
+                        <Ionicons
+                          name={(operation.equipment as any)?.category === 'loading' ? 'construct' : 'car'}
+                          size={16}
+                          color={theme.colors.textSecondary}
+                        />
+                      </View>
+                      <View style={styles.operationInfo}>
+                        <Text style={styles.operationName}>{(operation.equipment as any)?.name || 'Equipment'}</Text>
+                        <Text style={styles.operationOperator}>{operator?.name || user?.name || 'Operator'}</Text>
+                        <View style={styles.operationActivityRow}>
+                          <Text style={[styles.operationActivity, { color: theme.colors.textSecondary }]}>{activity?.name || 'Activity'}</Text>
+                          {material && (
+                            <>
+                              <Text style={styles.operationSeparator}> • </Text>
+                              <Text style={styles.operationMaterial}>{material.name}</Text>
+                            </>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.operationRight}>
+                        <View style={styles.operationTime}>
+                          <Ionicons name="time-outline" size={12} color={theme.colors.textSecondary} />
+                          <Text style={styles.operationTimeValue}>{formatTime(duration)}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => handleEditOperation(operation)}
+                        >
+                          <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </Card>
+                );
+              })}
+            </>
+          )}
+
+          {/* Empty State */}
+          {activeOperations.length === 0 && stoppedOperations.length === 0 && !dataLoading && (
+            <View style={styles.emptyState}>
+              <Ionicons name="clipboard-outline" size={48} color={theme.colors.textSecondary} />
+              <Text style={styles.emptyStateText}>No operations yet</Text>
+              <Text style={styles.emptyStateSubtext}>Tap the button below to start tracking</Text>
+            </View>
           )}
         </View>
         <StatusBar style="auto" />
@@ -298,6 +401,18 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
     marginTop: theme.spacing.xs,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  adminButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutButton: {
     width: 40,
@@ -392,5 +507,21 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.textSecondary,
     fontVariant: ['tabular-nums'],
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.xl * 2,
+  },
+  emptyStateText: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.md,
+  },
+  emptyStateSubtext: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs,
   },
 });

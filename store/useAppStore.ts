@@ -6,6 +6,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  role?: 'operator' | 'administrator';
 }
 
 interface ActiveOperationState {
@@ -22,7 +23,8 @@ interface AppState {
   selectedEquipment: Equipment | null;
   currentOperation: Operation | null;
   operationStartTime: number | null;
-  activeOperations: ActiveOperationState[];
+  activeOperation: ActiveOperationState | null;
+  activeOperations: ActiveOperationState[]; // Keep for backward compatibility, but will only have 0-1 items
   setLoading: (loading: boolean) => void;
   setAuth: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
@@ -30,6 +32,7 @@ interface AppState {
   setSelectedEquipment: (equipment: Equipment | null) => void;
   setCurrentOperation: (operation: Operation | null) => void;
   setOperationStartTime: (time: number | null) => void;
+  setActiveOperation: (operation: ActiveOperationState | null) => void;
   addActiveOperation: (operation: ActiveOperationState) => void;
   removeActiveOperation: (operationId: string) => void;
 }
@@ -42,6 +45,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedEquipment: null,
   currentOperation: null,
   operationStartTime: null,
+  activeOperation: null,
   activeOperations: [],
 
   setLoading: (loading) => set({ isLoading: loading }),
@@ -55,7 +59,16 @@ export const useAppStore = create<AppState>((set) => ({
   logout: async () => {
     await AsyncStorage.removeItem('authToken');
     await AsyncStorage.removeItem('user');
-    set({ token: null, user: null, isAuthenticated: false, selectedEquipment: null, currentOperation: null, operationStartTime: null, activeOperations: [] });
+    set({
+      token: null,
+      user: null,
+      isAuthenticated: false,
+      selectedEquipment: null,
+      currentOperation: null,
+      operationStartTime: null,
+      activeOperation: null,
+      activeOperations: []
+    });
   },
 
   checkAuth: async () => {
@@ -79,11 +92,28 @@ export const useAppStore = create<AppState>((set) => ({
   setCurrentOperation: (operation) => set({ currentOperation: operation }),
   setOperationStartTime: (time) => set({ operationStartTime: time }),
 
-  addActiveOperation: (operation) => set((state) => ({
-    activeOperations: [...state.activeOperations, operation]
-  })),
+  setActiveOperation: (operation) => set({
+    activeOperation: operation,
+    activeOperations: operation ? [operation] : [] // Keep activeOperations in sync
+  }),
 
-  removeActiveOperation: (operationId) => set((state) => ({
-    activeOperations: state.activeOperations.filter(op => op.operation._id !== operationId)
-  })),
+  // Replace current active operation with new one (only allow 1 active operation)
+  addActiveOperation: (operation) => set({
+    activeOperation: operation,
+    activeOperations: [operation],
+    currentOperation: operation.operation,
+    operationStartTime: operation.startTime
+  }),
+
+  removeActiveOperation: (operationId) => set((state) => {
+    if (state.activeOperation?.operation._id === operationId) {
+      return {
+        activeOperation: null,
+        activeOperations: [],
+        currentOperation: null,
+        operationStartTime: null
+      };
+    }
+    return state;
+  }),
 }));

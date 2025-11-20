@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/useAppStore';
 import Request from '../lib/request';
-import { Material, Activity, User, Equipment as EquipmentType } from '../types';
+import { Material, Activity, Equipment as EquipmentType } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
 import ActivityDetailSelect from '../components/ActivityDetailSelect';
 import { Button, Card, Input } from '../components/ui';
@@ -17,7 +17,6 @@ export default function OperationScreen() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState('');
-  const [selectedOperator, setSelectedOperator] = useState('');
   const [selectedMaterial, setSelectedMaterial] = useState('');
   const [selectedTruck, setSelectedTruck] = useState('');
   const [miningFront, setMiningFront] = useState('');
@@ -26,7 +25,6 @@ export default function OperationScreen() {
   const [selectedDetailReason, setSelectedDetailReason] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
-  const [users, setUsers] = useState<User[]>([]);
   const [trucks, setTrucks] = useState<EquipmentType[]>([]);
 
   useEffect(() => {
@@ -49,11 +47,10 @@ export default function OperationScreen() {
 
   const fetchData = async () => {
     try {
-      const [materialsRes, activitiesRes, equipmentRes, usersRes] = await Promise.all([
+      const [materialsRes, activitiesRes, equipmentRes] = await Promise.all([
         Request.Get('/materials'),
         Request.Get('/activities'),
-        Request.Get('/equipment'),
-        Request.Get('/users')
+        Request.Get('/equipment')
       ]);
 
       if (materialsRes.success) {
@@ -69,12 +66,6 @@ export default function OperationScreen() {
           return false;
         });
         setActivities(filteredActivities);
-      }
-
-      if (usersRes.success) {
-        setUsers(usersRes.data);
-      } else if (usersRes.error) {
-        Alert.alert('Error', `Failed to load operators: ${usersRes.error}`);
       }
 
       if (equipmentRes.success) {
@@ -101,11 +92,6 @@ export default function OperationScreen() {
       return;
     }
 
-    if (!selectedOperator) {
-      Alert.alert('Error', 'Please select an operator');
-      return;
-    }
-
     const activity = activities.find(a => a._id === selectedActivity);
 
     if (!activity) {
@@ -115,10 +101,9 @@ export default function OperationScreen() {
 
     setLoading(true);
     try {
-      // Build operation payload in order matching the model
+      // Build operation payload - operator will be set automatically from authenticated user
       const operationData: any = {
         equipment: selectedEquipment?._id,
-        operator: selectedOperator,
         activity: selectedActivity,
       };
 
@@ -165,7 +150,6 @@ export default function OperationScreen() {
         });
         // Reset form
         setSelectedActivity('');
-        setSelectedOperator('');
         setSelectedMaterial('');
         setSelectedTruck('');
         setMiningFront('');
@@ -174,9 +158,10 @@ export default function OperationScreen() {
         setSelectedDetailReason('');
         router.replace('/');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting operation:', error);
-      Alert.alert('Error', 'Failed to start operation');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to start operation';
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -207,7 +192,6 @@ export default function OperationScreen() {
   };
 
   const activityOptions = activities.map(act => ({ label: act.name, value: act._id }));
-  const userOptions = users.map(user => ({ label: user.name, value: user._id }));
   const materialOptions = materials.map(mat => ({ label: mat.name, value: mat._id }));
   const truckOptions = trucks.map(truck => ({ label: truck.name, value: truck._id }));
 
@@ -295,14 +279,6 @@ export default function OperationScreen() {
             <Text style={styles.sectionTitle}>Select Activity</Text>
 
             <SearchableSelect
-              label="Operator *"
-              placeholder="Select operator"
-              options={userOptions}
-              value={selectedOperator}
-              onValueChange={setSelectedOperator}
-            />
-
-            <SearchableSelect
               label="Activity Type"
               placeholder="Choose an activity"
               options={activityOptions}
@@ -373,7 +349,7 @@ export default function OperationScreen() {
               title={loading ? 'Starting...' : 'Start Activity'}
               variant="primary"
               onPress={handleStartOperation}
-              disabled={loading || !selectedActivity || !selectedOperator}
+              disabled={loading || !selectedActivity}
               fullWidth
             />
           </View>

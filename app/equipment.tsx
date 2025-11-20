@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/useAppStore';
@@ -10,7 +10,7 @@ import { theme } from '../theme';
 
 export default function EquipmentScreen() {
   const router = useRouter();
-  const { setSelectedEquipment, setCurrentOperation, setOperationStartTime } = useAppStore();
+  const { setSelectedEquipment, setCurrentOperation, setOperationStartTime, activeOperation } = useAppStore();
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,6 +34,16 @@ export default function EquipmentScreen() {
   };
 
   const handleSelectEquipment = (item: Equipment) => {
+    // Check if there's already an active operation
+    if (activeOperation) {
+      Alert.alert(
+        'Active Operation Exists',
+        'You already have an active operation. Please stop it before starting a new one.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     setSelectedEquipment(item);
     // Clear any old operation state when selecting new equipment
     setCurrentOperation(null);
