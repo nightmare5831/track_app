@@ -8,7 +8,7 @@ import { useAppStore } from '../store/useAppStore';
 import Request from '../lib/request';
 import { Card, Badge } from '../components/ui';
 import { theme } from '../theme';
-import { Activity, User as UserType } from '../types';
+import { Activity, User as UserType, Material } from '../types';
 
 export default function Home() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [activities, setActivities] = useState<Activity[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
@@ -28,12 +29,14 @@ export default function Home() {
 
   const fetchData = async () => {
     try {
-      const [activitiesRes, usersRes] = await Promise.all([
+      const [activitiesRes, usersRes, materialsRes] = await Promise.all([
         Request.Get('/activities'),
-        Request.Get('/users')
+        Request.Get('/users'),
+        Request.Get('/materials')
       ]);
       if (activitiesRes.success) setActivities(activitiesRes.data);
       if (usersRes.success) setUsers(usersRes.data);
+      if (materialsRes.success) setMaterials(materialsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -143,6 +146,8 @@ export default function Home() {
                 const activity = activities.find(a => a._id === activityId);
                 const operatorId = typeof activeOp.operation.operator === 'string' ? activeOp.operation.operator : (activeOp.operation.operator as any)?._id;
                 const operator = users.find(u => u._id === operatorId);
+                const materialId = typeof activeOp.operation.material === 'string' ? activeOp.operation.material : (activeOp.operation.material as any)?._id;
+                const material = materialId ? materials.find(m => m._id === materialId) : null;
 
                 return (
                   <Card
@@ -164,8 +169,16 @@ export default function Home() {
                       </View>
                       <View style={styles.operationInfo}>
                         <Text style={styles.operationName}>{activeOp.equipment.name}</Text>
-                        <Text style={styles.operationActivity}>{activity?.name || 'Activity'}</Text>
                         <Text style={styles.operationOperator}>{operator?.name || 'Operator'}</Text>
+                        <View style={styles.operationActivityRow}>
+                          <Text style={styles.operationActivity}>{activity?.name || 'Activity'}</Text>
+                          {material && (
+                            <>
+                              <Text style={styles.operationSeparator}> • </Text>
+                              <Text style={styles.operationMaterial}>{material.name}</Text>
+                            </>
+                          )}
+                        </View>
                       </View>
                       <View style={styles.operationRight}>
                         <View style={styles.operationTime}>
@@ -313,15 +326,12 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.surface,
+    padding: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stopButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    // No special styling needed - icon color handles the visual
   },
   operationIcon: {
     width: 28,
@@ -340,15 +350,29 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text,
   },
-  operationActivity: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.primary,
-    marginTop: 2,
-  },
   operationOperator: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.textSecondary,
     marginTop: 2,
+  },
+  operationActivityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    flexWrap: 'wrap',
+  },
+  operationActivity: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.primary,
+  },
+  operationSeparator: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+  },
+  operationMaterial: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.success,
+    fontWeight: theme.fontWeight.medium,
   },
   operationTime: {
     flexDirection: 'row',

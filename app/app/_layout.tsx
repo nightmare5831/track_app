@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/useAppStore';
 import { theme } from '../theme';
 import '../global.css';
@@ -17,6 +19,11 @@ export default function RootLayout() {
   const router = useRouter();
   const [appIsReady, setAppIsReady] = useState(false);
 
+  // Load Ionicons font
+  const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
+  });
+
   useEffect(() => {
     async function prepare() {
       try {
@@ -25,12 +32,18 @@ export default function RootLayout() {
         console.warn(e);
       } finally {
         setAppIsReady(true);
-        await SplashScreen.hideAsync();
       }
     }
 
     prepare();
   }, []);
+
+  useEffect(() => {
+    // Hide splash screen only when both fonts are loaded and app is ready
+    if (fontsLoaded && appIsReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, appIsReady]);
 
   useEffect(() => {
     // Don't navigate while still loading
@@ -45,8 +58,8 @@ export default function RootLayout() {
     }
   }, [isAuthenticated, segments, isLoading]);
 
-  // Show loading screen while checking auth or app not ready
-  if (isLoading || !appIsReady) {
+  // Show loading screen while checking auth, app not ready, or fonts not loaded
+  if (isLoading || !appIsReady || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
