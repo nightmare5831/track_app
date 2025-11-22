@@ -146,7 +146,8 @@ export default function OperationScreen() {
         addActiveOperation({
           equipment: selectedEquipment,
           operation: response.data,
-          startTime: now
+          startTime: now,
+          repeatCount: 1
         });
         // Reset form
         setSelectedActivity('');

@@ -8,11 +8,11 @@ import { useAppStore } from '../store/useAppStore';
 import Request from '../lib/request';
 import { Card, Badge } from '../components/ui';
 import { theme } from '../theme';
-import { Activity, User as UserType, Material, Operation } from '../types';
+import { Activity, User as UserType, Material, Operation, Equipment } from '../types';
 
 export default function Home() {
   const router = useRouter();
-  const { user, logout, activeOperations, setSelectedEquipment, addActiveOperation, removeActiveOperation } = useAppStore();
+  const { user, logout, activeOperations, setSelectedEquipment, addActiveOperation, removeActiveOperation, incrementRepeatCount } = useAppStore();
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [activities, setActivities] = useState<Activity[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
@@ -48,6 +48,7 @@ export default function Home() {
       if (operationsRes.success) {
         // Filter stopped operations (those with endTime)
         const stopped = operationsRes.data.filter((op: Operation) => op.endTime);
+
         // Sort by endTime descending (most recent first)
         stopped.sort((a: Operation, b: Operation) =>
           new Date(b.endTime!).getTime() - new Date(a.endTime!).getTime()
@@ -71,6 +72,26 @@ export default function Home() {
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Count how many operations exist for a given combination (from database)
+  const getOperationRepetitionCount = (operation: Operation) => {
+    const equipmentId = typeof operation.equipment === 'string' ? operation.equipment : operation.equipment?._id;
+    const activityId = typeof operation.activity === 'string' ? operation.activity : operation.activity?._id;
+    const materialId = operation.material ? (typeof operation.material === 'string' ? operation.material : operation.material?._id) : null;
+
+    // Count all stopped operations with the same combination
+    const count = stoppedOperations.filter(op => {
+      const opEquipmentId = typeof op.equipment === 'string' ? op.equipment : op.equipment?._id;
+      const opActivityId = typeof op.activity === 'string' ? op.activity : op.activity?._id;
+      const opMaterialId = op.material ? (typeof op.material === 'string' ? op.material : op.material?._id) : null;
+
+      return opEquipmentId === equipmentId &&
+             opActivityId === activityId &&
+             opMaterialId === materialId;
+    }).length;
+
+    return count;
   };
 
   const handleViewOperation = (equipmentId: string) => {
@@ -115,30 +136,125 @@ export default function Home() {
     // TODO: Navigate to edit screen or show edit modal
   };
 
-  const handleRecreateOperation = async (activeOp: any) => {
-    if (!activeOp.operation) {
-      Alert.alert('Error', 'Operation information is missing');
-      return;
-    }
+  // Group stopped operations by equipment+activity+material and hide those with active counterparts
+  const getGroupedStoppedOperations = () => {
+    // First, group all stopped operations
+    const groups = new Map<string, Operation[]>();
 
-    try {
-      const response = await Request.Post('/operations/start', {
-        equipment: activeOp.equipment._id,
-        operator: activeOp.operation.operator,
-        activity: activeOp.operation.activity
+    stoppedOperations.forEach(op => {
+      const equipmentId = typeof op.equipment === 'string' ? op.equipment : op.equipment?._id;
+      const activityId = typeof op.activity === 'string' ? op.activity : op.activity?._id;
+      const materialId = op.material ? (typeof op.material === 'string' ? op.material : op.material?._id) : null;
+
+      if (!equipmentId || !activityId) return;
+
+      const key = `${equipmentId}_${activityId}_${materialId || 'none'}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(op);
+    });
+
+    // Filter out groups that have an active counterpart
+    const filteredGroups: Operation[][] = [];
+
+    groups.forEach((operations, key) => {
+      const firstOp = operations[0];
+      const equipmentId = typeof firstOp.equipment === 'string' ? firstOp.equipment : firstOp.equipment?._id;
+      const activityId = typeof firstOp.activity === 'string' ? firstOp.activity : firstOp.activity?._id;
+      const materialId = firstOp.material ? (typeof firstOp.material === 'string' ? firstOp.material : firstOp.material?._id) : null;
+
+      // Check if there's an active operation with the same combination
+      const hasActiveCounterpart = activeOperations.some(activeOp => {
+        const activeEquipmentId = typeof activeOp.operation.equipment === 'string' ? activeOp.operation.equipment : activeOp.operation.equipment?._id;
+        const activeActivityId = typeof activeOp.operation.activity === 'string' ? activeOp.operation.activity : activeOp.operation.activity?._id;
+        const activeMaterialId = activeOp.operation.material ? (typeof activeOp.operation.material === 'string' ? activeOp.operation.material : activeOp.operation.material?._id) : null;
+
+        return activeEquipmentId === equipmentId &&
+               activeActivityId === activityId &&
+               activeMaterialId === materialId;
       });
 
-      if (response.success) {
-        const now = Date.now();
-        addActiveOperation({
-          equipment: activeOp.equipment,
-          operation: response.data,
-          startTime: now
-        });
+      // Only include if there's no active counterpart
+      if (!hasActiveCounterpart) {
+        filteredGroups.push(operations);
+      }
+    });
+
+    return filteredGroups;
+  };
+
+  const handleCreateSameOperation = async (operation: Operation) => {
+    try {
+      // Extract the IDs from the operation
+      const equipmentId = typeof operation.equipment === 'string' ? operation.equipment : operation.equipment._id;
+      const activityId = typeof operation.activity === 'string' ? operation.activity : operation.activity._id;
+      const materialId = operation.material ? (typeof operation.material === 'string' ? operation.material : operation.material._id) : undefined;
+
+      // Check if there's already an active operation with the same combination
+      const existingActiveOp = activeOperations.find(activeOp => {
+        const activeEquipmentId = typeof activeOp.operation.equipment === 'string' ? activeOp.operation.equipment : activeOp.operation.equipment?._id;
+        const activeActivityId = typeof activeOp.operation.activity === 'string' ? activeOp.operation.activity : activeOp.operation.activity?._id;
+        const activeMaterialId = activeOp.operation.material ? (typeof activeOp.operation.material === 'string' ? activeOp.operation.material : activeOp.operation.material?._id) : null;
+
+        return activeEquipmentId === equipmentId &&
+               activeActivityId === activityId &&
+               activeMaterialId === materialId;
+      });
+
+      if (existingActiveOp && existingActiveOp.operation._id) {
+        // Active operation already exists, just increment the local counter
+        incrementRepeatCount(existingActiveOp.operation._id);
+        Alert.alert('Success', 'Operation count incremented');
+      } else {
+        // No active operation, create a new one
+        const newOperationData: any = {
+          equipment: equipmentId,
+          activity: activityId,
+        };
+
+        // Add optional fields if they exist
+        if (materialId) {
+          newOperationData.material = materialId;
+        }
+        if (operation.truckBeingLoaded) {
+          newOperationData.truckBeingLoaded = operation.truckBeingLoaded;
+        }
+        if (operation.miningFront) {
+          newOperationData.miningFront = operation.miningFront;
+        }
+        if (operation.destination) {
+          newOperationData.destination = operation.destination;
+        }
+        if (operation.activityDetails) {
+          newOperationData.activityDetails = operation.activityDetails;
+        }
+
+        const response = await Request.Post('/operations/start', newOperationData);
+
+        if (response.success) {
+          // Get the equipment object for the new active operation
+          const equipment = typeof operation.equipment === 'string'
+            ? { _id: equipmentId, name: 'Equipment', category: 'loading', status: 'active', createdAt: '', updatedAt: '' } as Equipment
+            : operation.equipment;
+
+          // Add to active operations with initial repeatCount of 1
+          addActiveOperation({
+            equipment,
+            operation: response.data,
+            startTime: Date.now(),
+            repeatCount: 1
+          });
+
+          Alert.alert('Success', 'New operation started with same settings');
+        } else {
+          Alert.alert('Error', 'Failed to create operation');
+        }
       }
     } catch (error) {
-      console.error('Error recreating operation:', error);
-      Alert.alert('Error', 'Failed to recreate operation');
+      console.error('Error creating same operation:', error);
+      Alert.alert('Error', 'Failed to create operation');
     }
   };
 
@@ -155,11 +271,11 @@ export default function Home() {
             <View style={styles.headerActions}>
               {user?.role === 'administrator' && (
                 <TouchableOpacity style={styles.adminButton} onPress={() => router.push('/admin')}>
-                  <Ionicons name="stats-chart" size={20} color={theme.colors.primary} />
+                  <Ionicons name="stats-chart" size={24} color={theme.colors.primary} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
+                <Ionicons name="log-out" size={24} color="#ffffff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -182,6 +298,8 @@ export default function Home() {
                 const operator = users.find(u => u._id === operatorId);
                 const materialId = typeof activeOp.operation.material === 'string' ? activeOp.operation.material : (activeOp.operation.material as any)?._id;
                 const material = materialId ? materials.find(m => m._id === materialId) : null;
+                // Use local repeatCount from activeOp (includes database count + local increments)
+                const totalCount = getOperationRepetitionCount(activeOp.operation) + (activeOp.repeatCount || 1);
 
                 return (
                   <Card
@@ -202,7 +320,12 @@ export default function Home() {
                         />
                       </View>
                       <View style={styles.operationInfo}>
-                        <Text style={styles.operationName}>{activeOp.equipment.name}</Text>
+                        <View style={styles.operationNameRow}>
+                          <Text style={styles.operationName}>{activeOp.equipment.name}</Text>
+                          {totalCount > 1 && (
+                            <Badge label={`×${totalCount}`} variant="primary" size="sm" />
+                          )}
+                        </View>
                         <Text style={styles.operationOperator}>{operator?.name || 'Operator'}</Text>
                         <View style={styles.operationActivityRow}>
                           <Text style={styles.operationActivity}>{activity?.name || 'Activity'}</Text>
@@ -216,27 +339,27 @@ export default function Home() {
                       </View>
                       <View style={styles.operationRight}>
                         <View style={styles.operationTime}>
-                          <Ionicons name="time-outline" size={12} color={theme.colors.textSecondary} />
+                          <Ionicons name="time-outline" size={14} color={theme.colors.textSecondary} />
                           <Text style={styles.operationTimeValue}>{formatTime(elapsed)}</Text>
                         </View>
                         <View style={styles.operationActions}>
                           <TouchableOpacity
-                            style={[styles.actionButton, styles.stopButton]}
+                            style={styles.stopButtonLarge}
                             onPress={(e) => {
                               e.stopPropagation();
                               handleStopOperation(activeOp.operation._id);
                             }}
                           >
-                            <Ionicons name="stop-circle" size={20} color={theme.colors.error} />
+                            <Ionicons name="stop-circle" size={32} color={theme.colors.error} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.actionButton}
                             onPress={(e) => {
                               e.stopPropagation();
-                              handleRecreateOperation(activeOp);
+                              handleEditOperation(activeOp.operation);
                             }}
                           >
-                            <Ionicons name="play-circle" size={20} color={theme.colors.primary} />
+                            <Ionicons name="create-outline" size={24} color={theme.colors.primary} />
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -248,14 +371,18 @@ export default function Home() {
           )}
 
           {/* Stopped Operations Section */}
-          {stoppedOperations.length > 0 && (
+          {getGroupedStoppedOperations().length > 0 && (
             <>
               <View style={[styles.sectionHeader, { marginTop: activeOperations.length > 0 ? theme.spacing.lg : 0 }]}>
                 <Text style={styles.sectionTitle}>Recent Activities</Text>
-                <Badge label={stoppedOperations.length.toString()} variant="secondary" size="sm" />
+                <Badge label={getGroupedStoppedOperations().length.toString()} variant="neutral" size="sm" />
               </View>
 
-              {stoppedOperations.map((operation) => {
+              {getGroupedStoppedOperations().map((operationGroup: Operation[], index: number) => {
+                // Use the first operation in the group as representative
+                const operation = operationGroup[0];
+                const groupCount = operationGroup.length;
+
                 const activityId = typeof operation.activity === 'string' ? operation.activity : (operation.activity as any)?._id;
                 const activity = activities.find(a => a._id === activityId);
                 const operatorId = typeof operation.operator === 'string' ? operation.operator : (operation.operator as any)?._id;
@@ -264,14 +391,20 @@ export default function Home() {
                 const material = materialId ? materials.find(m => m._id === materialId) : null;
                 const equipmentId = typeof operation.equipment === 'string' ? operation.equipment : (operation.equipment as any)?._id;
 
-                // Calculate duration
-                const duration = operation.endTime && operation.startTime
-                  ? Math.floor((new Date(operation.endTime).getTime() - new Date(operation.startTime).getTime()) / 1000)
-                  : 0;
+                // Calculate total duration for all operations in the group
+                const totalDuration = operationGroup.reduce((sum, op) => {
+                  if (op.endTime && op.startTime) {
+                    return sum + Math.floor((new Date(op.endTime).getTime() - new Date(op.startTime).getTime()) / 1000);
+                  }
+                  return sum;
+                }, 0);
+
+                // Average duration per operation
+                const avgDuration = groupCount > 0 ? Math.floor(totalDuration / groupCount) : 0;
 
                 return (
                   <Card
-                    key={operation._id}
+                    key={`group-${index}-${operation._id}`}
                     variant="flat"
                     padding="sm"
                   >
@@ -284,7 +417,12 @@ export default function Home() {
                         />
                       </View>
                       <View style={styles.operationInfo}>
-                        <Text style={styles.operationName}>{(operation.equipment as any)?.name || 'Equipment'}</Text>
+                        <View style={styles.operationNameRow}>
+                          <Text style={styles.operationName}>{(operation.equipment as any)?.name || 'Equipment'}</Text>
+                          {groupCount > 1 && (
+                            <Badge label={`×${groupCount}`} variant="neutral" size="sm" />
+                          )}
+                        </View>
                         <Text style={styles.operationOperator}>{operator?.name || user?.name || 'Operator'}</Text>
                         <View style={styles.operationActivityRow}>
                           <Text style={[styles.operationActivity, { color: theme.colors.textSecondary }]}>{activity?.name || 'Activity'}</Text>
@@ -299,14 +437,22 @@ export default function Home() {
                       <View style={styles.operationRight}>
                         <View style={styles.operationTime}>
                           <Ionicons name="time-outline" size={12} color={theme.colors.textSecondary} />
-                          <Text style={styles.operationTimeValue}>{formatTime(duration)}</Text>
+                          <Text style={styles.operationTimeValue}>{formatTime(avgDuration)}</Text>
                         </View>
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => handleEditOperation(operation)}
-                        >
-                          <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
-                        </TouchableOpacity>
+                        <View style={styles.operationActions}>
+                          <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => handleCreateSameOperation(operation)}
+                          >
+                            <Ionicons name="copy-outline" size={20} color={theme.colors.success} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => handleEditOperation(operation)}
+                          >
+                            <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   </Card>
@@ -316,7 +462,7 @@ export default function Home() {
           )}
 
           {/* Empty State */}
-          {activeOperations.length === 0 && stoppedOperations.length === 0 && !dataLoading && (
+          {activeOperations.length === 0 && getGroupedStoppedOperations().length === 0 && !dataLoading && (
             <View style={styles.emptyState}>
               <Ionicons name="clipboard-outline" size={48} color={theme.colors.textSecondary} />
               <Text style={styles.emptyStateText}>No operations yet</Text>
@@ -415,12 +561,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoutButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    alignItems: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#ef4444',
     justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 5,
   },
   content: {
     padding: theme.spacing.md,
@@ -442,7 +593,7 @@ const styles = StyleSheet.create({
   },
   operationRight: {
     alignItems: 'flex-end',
-    gap: theme.spacing.xs,
+    gap: theme.spacing.sm,
   },
   operationActions: {
     flexDirection: 'row',
@@ -456,6 +607,11 @@ const styles = StyleSheet.create({
   stopButton: {
     // No special styling needed - icon color handles the visual
   },
+  stopButtonLarge: {
+    padding: theme.spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   operationIcon: {
     width: 28,
     height: 28,
@@ -467,6 +623,11 @@ const styles = StyleSheet.create({
   },
   operationInfo: {
     flex: 1,
+  },
+  operationNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
   },
   operationName: {
     fontSize: theme.fontSize.sm,

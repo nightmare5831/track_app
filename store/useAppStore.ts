@@ -13,6 +13,7 @@ interface ActiveOperationState {
   equipment: Equipment;
   operation: Operation;
   startTime: number;
+  repeatCount: number; // How many times this operation has been repeated locally
 }
 
 interface AppState {
@@ -35,6 +36,7 @@ interface AppState {
   setActiveOperation: (operation: ActiveOperationState | null) => void;
   addActiveOperation: (operation: ActiveOperationState) => void;
   removeActiveOperation: (operationId: string) => void;
+  incrementRepeatCount: (operationId: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -112,6 +114,20 @@ export const useAppStore = create<AppState>((set) => ({
         activeOperations: [],
         currentOperation: null,
         operationStartTime: null
+      };
+    }
+    return state;
+  }),
+
+  incrementRepeatCount: (operationId) => set((state) => {
+    if (state.activeOperation?.operation._id === operationId) {
+      const updatedActiveOp = {
+        ...state.activeOperation,
+        repeatCount: state.activeOperation.repeatCount + 1
+      };
+      return {
+        activeOperation: updatedActiveOp,
+        activeOperations: [updatedActiveOp]
       };
     }
     return state;
