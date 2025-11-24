@@ -34,7 +34,8 @@ interface OperatorStatus {
 
 export default function AdminScreen() {
   const router = useRouter();
-  const { user, logout } = useAppStore();
+  const user = useAppStore((state) => state.user);
+  const logout = useAppStore((state) => state.logout);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [operators, setOperators] = useState<OperatorStatus[]>([]);
   const [refreshing, setRefreshing] = useState(false);

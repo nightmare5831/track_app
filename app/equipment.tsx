@@ -10,7 +10,10 @@ import { theme } from '../theme';
 
 export default function EquipmentScreen() {
   const router = useRouter();
-  const { setSelectedEquipment, setCurrentOperation, setOperationStartTime, activeOperation } = useAppStore();
+  const setSelectedEquipment = useAppStore((state) => state.setSelectedEquipment);
+  const setCurrentOperation = useAppStore((state) => state.setCurrentOperation);
+  const setOperationStartTime = useAppStore((state) => state.setOperationStartTime);
+  const activeOperation = useAppStore((state) => state.activeOperation);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');

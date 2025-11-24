@@ -12,18 +12,40 @@ import { Activity, User as UserType, Material, Operation, Equipment } from '../t
 
 export default function Home() {
   const router = useRouter();
-  const { user, logout, activeOperations, setSelectedEquipment, addActiveOperation, removeActiveOperation, incrementRepeatCount } = useAppStore();
+  const user = useAppStore((state) => state.user);
+  const logout = useAppStore((state) => state.logout);
+  const activeOperations = useAppStore((state) => state.activeOperations);
+  const setSelectedEquipment = useAppStore((state) => state.setSelectedEquipment);
+  const addActiveOperation = useAppStore((state) => state.addActiveOperation);
+  const removeActiveOperation = useAppStore((state) => state.removeActiveOperation);
+  const incrementRepeatCount = useAppStore((state) => state.incrementRepeatCount);
+  const syncActiveOperations = useAppStore((state) => state.syncActiveOperations);
+
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [activities, setActivities] = useState<Activity[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [stoppedOperations, setStoppedOperations] = useState<Operation[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [hasSyncedOperations, setHasSyncedOperations] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    // Sync active operations from server when user first logs in
+    if (user && !hasSyncedOperations) {
+      syncActiveOperations();
+      setHasSyncedOperations(true);
+    }
+    // Reset sync flag when user logs out
+    if (!user) {
+      setHasSyncedOperations(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, hasSyncedOperations]);
 
   useEffect(() => {
     // Only fetch data if user is authenticated

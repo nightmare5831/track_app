@@ -12,7 +12,13 @@ import { theme } from '../theme';
 
 export default function OperationScreen() {
   const router = useRouter();
-  const { selectedEquipment, currentOperation, operationStartTime, setCurrentOperation, setOperationStartTime, addActiveOperation, removeActiveOperation } = useAppStore();
+  const selectedEquipment = useAppStore((state) => state.selectedEquipment);
+  const currentOperation = useAppStore((state) => state.currentOperation);
+  const operationStartTime = useAppStore((state) => state.operationStartTime);
+  const setCurrentOperation = useAppStore((state) => state.setCurrentOperation);
+  const setOperationStartTime = useAppStore((state) => state.setOperationStartTime);
+  const addActiveOperation = useAppStore((state) => state.addActiveOperation);
+  const removeActiveOperation = useAppStore((state) => state.removeActiveOperation);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(false);

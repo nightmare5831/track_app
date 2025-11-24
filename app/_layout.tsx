@@ -7,11 +7,14 @@ import '../global.css';
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, checkAuth, user } = useAppStore();
+  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const checkAuth = useAppStore((state) => state.checkAuth);
+  const user = useAppStore((state) => state.user);
 
   useEffect(() => {
     // Check authentication status on mount
     checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
