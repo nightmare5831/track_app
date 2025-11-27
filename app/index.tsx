@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { APP_NAME } from '../data';
 import { useAppStore } from '../store/useAppStore';
 import Request from '../lib/request';
+import syncService from '../lib/syncService';
 import { Card, Badge } from '../components/ui';
 import { theme } from '../theme';
 import { Activity, User as UserType, Material, Operation, Equipment } from '../types';
@@ -57,28 +58,57 @@ export default function Home() {
   const fetchData = async () => {
     try {
       setDataLoading(true);
-      const [activitiesRes, usersRes, materialsRes, operationsRes] = await Promise.all([
-        Request.Get('/activities'),
-        Request.Get('/users'),
-        Request.Get('/materials'),
-        Request.Get('/operations')
-      ]);
+      const isOnline = await syncService.isOnline();
 
-      if (activitiesRes.success) setActivities(activitiesRes.data);
-      if (usersRes.success) setUsers(usersRes.data);
-      if (materialsRes.success) setMaterials(materialsRes.data);
-      if (operationsRes.success) {
-        // Filter stopped operations (those with endTime)
-        const stopped = operationsRes.data.filter((op: Operation) => op.endTime);
+      if (isOnline) {
+        // Online: fetch from server and cache
+        const [activitiesRes, usersRes, materialsRes, operationsRes] = await Promise.all([
+          Request.Get('/activities'),
+          Request.Get('/users'),
+          Request.Get('/materials'),
+          Request.Get('/operations')
+        ]);
 
-        // Sort by endTime descending (most recent first)
-        stopped.sort((a: Operation, b: Operation) =>
-          new Date(b.endTime!).getTime() - new Date(a.endTime!).getTime()
-        );
-        setStoppedOperations(stopped);
+        if (activitiesRes.success) {
+          setActivities(activitiesRes.data);
+          await syncService.cacheActivities(activitiesRes.data);
+        }
+        if (usersRes.success) setUsers(usersRes.data);
+        if (materialsRes.success) {
+          setMaterials(materialsRes.data);
+          await syncService.cacheMaterials(materialsRes.data);
+        }
+        if (operationsRes.success) {
+          // Filter stopped operations (those with endTime)
+          const stopped = operationsRes.data.filter((op: Operation) => op.endTime);
+
+          // Sort by endTime descending (most recent first)
+          stopped.sort((a: Operation, b: Operation) =>
+            new Date(b.endTime!).getTime() - new Date(a.endTime!).getTime()
+          );
+          setStoppedOperations(stopped);
+        }
+      } else {
+        // Offline: use cached data
+        const [cachedActivities, cachedMaterials] = await Promise.all([
+          syncService.getCachedActivities(),
+          syncService.getCachedMaterials()
+        ]);
+
+        setActivities(cachedActivities);
+        setMaterials(cachedMaterials);
+        // Stopped operations won't be available offline (they come from server)
+        // Keep existing stoppedOperations state
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Try to use cached data on error
+      const [cachedActivities, cachedMaterials] = await Promise.all([
+        syncService.getCachedActivities(),
+        syncService.getCachedMaterials()
+      ]);
+      if (cachedActivities.length > 0) setActivities(cachedActivities);
+      if (cachedMaterials.length > 0) setMaterials(cachedMaterials);
     } finally {
       setDataLoading(false);
     }
@@ -137,11 +167,34 @@ export default function Home() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await Request.Post(`/operations/${operationId}/stop`, { distance: 0 });
-              if (response.success) {
+              const now = Date.now();
+              const isLocalOperation = operationId.startsWith('local_');
+              const isOnline = await syncService.isOnline();
+
+              if (isOnline) {
+                // First sync any pending operations
+                await syncService.syncToServer();
+
+                // Stop operation on server (only if not a local-only operation)
+                if (!isLocalOperation) {
+                  const response = await Request.Post(`/operations/${operationId}/stop`, { distance: 0 });
+                  if (response.success) {
+                    removeActiveOperation(operationId);
+                    // Refresh stopped operations list
+                    fetchData();
+                  }
+                } else {
+                  // Local operation - just remove from active
+                  removeActiveOperation(operationId);
+                }
+              } else {
+                // Offline: save stop locally
+                await syncService.saveOperationLocally('stop', {
+                  operationId: operationId,
+                  localEndTime: now,
+                  distance: 0,
+                });
                 removeActiveOperation(operationId);
-                // Refresh stopped operations list
-                fetchData();
               }
             } catch (error) {
               console.error('Error stopping operation:', error);
@@ -253,26 +306,47 @@ export default function Home() {
           newOperationData.activityDetails = operation.activityDetails;
         }
 
-        const response = await Request.Post('/operations/start', newOperationData);
+        const now = Date.now();
+        const isOnline = await syncService.isOnline();
+        let serverOperation = null;
+        let localId = '';
 
-        if (response.success) {
-          // Get the equipment object for the new active operation
-          const equipment = typeof operation.equipment === 'string'
-            ? { _id: equipmentId, name: 'Equipment', category: 'loading', status: 'active', createdAt: '', updatedAt: '' } as Equipment
-            : operation.equipment;
+        if (isOnline) {
+          // First sync any pending operations before creating new one
+          await syncService.syncToServer();
 
-          // Add to active operations with initial repeatCount of 1
-          addActiveOperation({
-            equipment,
-            operation: response.data,
-            startTime: Date.now(),
-            repeatCount: 1
-          });
-
-          Alert.alert('Success', 'New operation started with same settings');
+          // Now create new operation directly on server
+          const response = await Request.Post('/operations/start', newOperationData);
+          if (response.success) {
+            serverOperation = response.data;
+          }
         } else {
-          Alert.alert('Error', 'Failed to create operation');
+          // Offline: save locally only
+          localId = await syncService.saveOperationLocally('start', newOperationData);
         }
+
+        // Get the equipment object for the new active operation
+        const equipment = typeof operation.equipment === 'string'
+          ? { _id: equipmentId, name: 'Equipment', category: 'loading', status: 'active', createdAt: '', updatedAt: '' } as Equipment
+          : operation.equipment;
+
+        // Use server response if available, otherwise create local placeholder
+        const newOperation = serverOperation || {
+          _id: localId,
+          ...newOperationData,
+          startTime: new Date(now).toISOString(),
+          isLocal: true,
+        };
+
+        // Add to active operations with initial repeatCount of 1
+        addActiveOperation({
+          equipment,
+          operation: newOperation,
+          startTime: now,
+          repeatCount: 1
+        });
+
+        Alert.alert('Success', isOnline ? 'New operation started with same settings' : 'Operation saved locally (will sync when online)');
       }
     } catch (error) {
       console.error('Error creating same operation:', error);

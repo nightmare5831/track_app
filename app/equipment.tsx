@@ -4,8 +4,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/useAppStore';
 import Request from '../lib/request';
+import syncService from '../lib/syncService';
 import { Equipment } from '../types';
-import { Card, Input, Badge } from '../components/ui';
+import { Card, Input } from '../components/ui';
 import { theme } from '../theme';
 
 export default function EquipmentScreen() {
@@ -25,12 +26,31 @@ export default function EquipmentScreen() {
 
   const fetchEquipment = async () => {
     try {
-      const response = await Request.Get('/equipment');
-      if (response.success) {
-        setEquipment(response.data);
+      const isOnline = await syncService.isOnline();
+
+      if (isOnline) {
+        // Online: fetch from server and cache
+        const response = await Request.Get('/equipment');
+        if (response.success) {
+          setEquipment(response.data);
+          await syncService.cacheEquipment(response.data);
+        }
+      } else {
+        // Offline: use cached data
+        const cachedEquipment = await syncService.getCachedEquipment();
+        setEquipment(cachedEquipment);
+
+        if (cachedEquipment.length === 0) {
+          Alert.alert('Offline', 'No cached equipment data available. Please connect to network first.');
+        }
       }
     } catch (error) {
       console.error('Error fetching equipment:', error);
+      // Try to use cached data on error
+      const cachedEquipment = await syncService.getCachedEquipment();
+      if (cachedEquipment.length > 0) {
+        setEquipment(cachedEquipment);
+      }
     } finally {
       setLoading(false);
     }

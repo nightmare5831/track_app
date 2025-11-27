@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, Alert, ScrollView, KeyboardAvoidingView, Platform, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Request from '../lib/request';
+import syncService from '../lib/syncService';
 import { useAppStore } from '../store/useAppStore';
 import { APP_NAME } from '../data';
 import { Button, Input } from '../components/ui';
 import { theme } from '../theme';
+
+const CACHED_CREDENTIALS_KEY = 'cachedCredentials';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -22,13 +26,45 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const response = await Request.Post('/auth/login', { email, password });
+      const isOnline = await syncService.isOnline();
 
-      if (response.error) {
-        Alert.alert('Error', response.error);
+      if (isOnline) {
+        // Online: authenticate with server
+        const response = await Request.Post('/auth/login', { email, password });
+
+        if (response.error) {
+          Alert.alert('Error', response.error);
+        } else {
+          // Cache credentials for offline login (hash password for security)
+          const hashedCredentials = {
+            email: email.toLowerCase(),
+            passwordHash: btoa(password), // Simple encoding (in production, use proper hashing)
+            token: response.token,
+            user: response.user
+          };
+          await AsyncStorage.setItem(CACHED_CREDENTIALS_KEY, JSON.stringify(hashedCredentials));
+
+          await setAuth(response.token, response.user);
+          router.replace('/');
+        }
       } else {
-        await setAuth(response.token, response.user);
-        router.replace('/');
+        // Offline: check cached credentials
+        const cachedData = await AsyncStorage.getItem(CACHED_CREDENTIALS_KEY);
+
+        if (cachedData) {
+          const cached = JSON.parse(cachedData);
+
+          // Verify credentials match
+          if (cached.email === email.toLowerCase() && cached.passwordHash === btoa(password)) {
+            // Credentials match - allow offline login
+            await setAuth(cached.token, cached.user);
+            router.replace('/');
+          } else {
+            Alert.alert('Error', 'Invalid credentials. Please check your email and password.');
+          }
+        } else {
+          Alert.alert('Offline', 'No cached credentials found. Please connect to the network for your first login.');
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to login. Please try again.');

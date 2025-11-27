@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/useAppStore';
 import Request from '../lib/request';
+import syncService from '../lib/syncService';
 import { Material, Activity, Equipment as EquipmentType } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
 import ActivityDetailSelect from '../components/ActivityDetailSelect';
@@ -53,35 +54,65 @@ export default function OperationScreen() {
 
   const fetchData = async () => {
     try {
-      const [materialsRes, activitiesRes, equipmentRes] = await Promise.all([
-        Request.Get('/materials'),
-        Request.Get('/activities'),
-        Request.Get('/equipment')
-      ]);
+      const isOnline = await syncService.isOnline();
 
-      if (materialsRes.success) {
-        setMaterials(materialsRes.data);
-      }
+      if (isOnline) {
+        // Online: fetch from server and cache
+        const [materialsRes, activitiesRes, equipmentRes] = await Promise.all([
+          Request.Get('/materials'),
+          Request.Get('/activities'),
+          Request.Get('/equipment')
+        ]);
 
-      if (activitiesRes.success) {
-        // Filter activities based on equipment category
-        const filteredActivities = activitiesRes.data.filter((activity: Activity) => {
+        if (materialsRes.success) {
+          setMaterials(materialsRes.data);
+          await syncService.cacheMaterials(materialsRes.data);
+        }
+
+        if (activitiesRes.success) {
+          await syncService.cacheActivities(activitiesRes.data);
+          const filteredActivities = activitiesRes.data.filter((activity: Activity) => {
+            if (activity.activityType === 'general') return true;
+            if (selectedEquipment?.category === 'loading' && activity.activityType === 'loading') return true;
+            if (selectedEquipment?.category === 'transport' && activity.activityType === 'transport') return true;
+            return false;
+          });
+          setActivities(filteredActivities);
+        }
+
+        if (equipmentRes.success) {
+          await syncService.cacheEquipment(equipmentRes.data);
+          const transportEquipment = equipmentRes.data.filter((eq: EquipmentType) => eq.category === 'transport');
+          setTrucks(transportEquipment);
+        }
+      } else {
+        // Offline: use cached data
+        const [cachedMaterials, cachedActivities, cachedEquipment] = await Promise.all([
+          syncService.getCachedMaterials(),
+          syncService.getCachedActivities(),
+          syncService.getCachedEquipment()
+        ]);
+
+        setMaterials(cachedMaterials);
+
+        const filteredActivities = cachedActivities.filter((activity: Activity) => {
           if (activity.activityType === 'general') return true;
           if (selectedEquipment?.category === 'loading' && activity.activityType === 'loading') return true;
           if (selectedEquipment?.category === 'transport' && activity.activityType === 'transport') return true;
           return false;
         });
         setActivities(filteredActivities);
-      }
 
-      if (equipmentRes.success) {
-        // Filter only transport equipment (trucks) for the truck selection
-        const transportEquipment = equipmentRes.data.filter((eq: EquipmentType) => eq.category === 'transport');
+        const transportEquipment = cachedEquipment.filter((eq: EquipmentType) => eq.category === 'transport');
         setTrucks(transportEquipment);
+
+        if (cachedActivities.length === 0) {
+          Alert.alert('Offline', 'No cached data available. Please connect to network first.');
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      Alert.alert('Error', 'Failed to load data. Please check your connection.');
+      Alert.alert('Error', 'Failed to load data.');
     }
   };
 
@@ -107,54 +138,71 @@ export default function OperationScreen() {
 
     setLoading(true);
     try {
-      // Build operation payload - operator will be set automatically from authenticated user
+      // Build operation payload
       const operationData: any = {
         equipment: selectedEquipment?._id,
         activity: selectedActivity,
       };
 
-      // Add activityDetails: use selected reason if available, otherwise use optional notes
-      // If there's a selected reason, use it. If not, use optional activity details notes
       if (selectedDetailReason) {
         operationData.activityDetails = selectedDetailReason;
       } else if (activityDetails && activityDetails.trim()) {
         operationData.activityDetails = activityDetails;
       }
 
-      // Add material if selected (for transport "Load" activity)
       if (selectedMaterial) {
         operationData.material = selectedMaterial;
       }
 
-      // Add truck being loaded if selected (for loading equipment)
       if (selectedTruck) {
         operationData.truckBeingLoaded = selectedTruck;
       }
 
-      // Add mining front if provided (for transport "Return" activity)
       if (miningFront) {
         operationData.miningFront = miningFront;
       }
 
-      // Add destination if provided (for transport equipment)
       if (destination) {
         operationData.destination = destination;
       }
 
-      // startTime will be set automatically by backend with Date.now()
+      const now = Date.now();
+      const isOnline = await syncService.isOnline();
+      let serverOperation = null;
+      let localId = '';
 
-      const response = await Request.Post('/operations/start', operationData);
+      if (isOnline) {
+        // First sync any pending operations before creating new one
+        await syncService.syncToServer();
 
-      if (response.success && selectedEquipment) {
-        const now = Date.now();
-        setCurrentOperation(response.data);
+        // Now create new operation directly on server
+        const response = await Request.Post('/operations/start', operationData);
+        if (response.success) {
+          serverOperation = response.data;
+        }
+      } else {
+        // Offline: save locally only
+        localId = await syncService.saveOperationLocally('start', operationData);
+      }
+
+      if (selectedEquipment) {
+        // Use server response if available, otherwise create local placeholder
+        const operation = serverOperation || {
+          _id: localId,
+          ...operationData,
+          startTime: new Date(now).toISOString(),
+          isLocal: true,
+        };
+
+        setCurrentOperation(operation);
         setOperationStartTime(now);
         addActiveOperation({
           equipment: selectedEquipment,
-          operation: response.data,
+          operation: operation,
           startTime: now,
           repeatCount: 1
         });
+
         // Reset form
         setSelectedActivity('');
         setSelectedMaterial('');
@@ -167,8 +215,7 @@ export default function OperationScreen() {
       }
     } catch (error: any) {
       console.error('Error starting operation:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to start operation';
-      Alert.alert('Error', errorMessage);
+      Alert.alert('Error', 'Failed to start operation');
     } finally {
       setLoading(false);
     }
@@ -179,17 +226,35 @@ export default function OperationScreen() {
 
     setLoading(true);
     try {
-      const response = await Request.Post(`/operations/${currentOperation._id}/stop`, {
-        distance: 0 // You can add distance input if needed
-      });
+      const now = Date.now();
+      const isLocalOperation = currentOperation._id.startsWith('local_');
+      const isOnline = await syncService.isOnline();
 
-      if (response.success && currentOperation._id) {
-        setTotalTime(totalTime + elapsedTime);
-        setCurrentOperation(null);
-        setOperationStartTime(null);
-        setElapsedTime(0);
-        removeActiveOperation(currentOperation._id);
+      if (isOnline) {
+        // First sync any pending operations
+        await syncService.syncToServer();
+
+        // Stop operation on server (only if not a local-only operation)
+        if (!isLocalOperation) {
+          await Request.Post(`/operations/${currentOperation._id}/stop`, {
+            distance: 0,
+          });
+        }
+      } else {
+        // Offline: save stop locally
+        await syncService.saveOperationLocally('stop', {
+          operationId: currentOperation._id,
+          localEndTime: now,
+          distance: 0,
+        });
       }
+
+      // Update local state
+      setTotalTime(totalTime + elapsedTime);
+      setCurrentOperation(null);
+      setOperationStartTime(null);
+      setElapsedTime(0);
+      removeActiveOperation(currentOperation._id);
     } catch (error) {
       console.error('Error stopping operation:', error);
       Alert.alert('Error', 'Failed to stop operation');

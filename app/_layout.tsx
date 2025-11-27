@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAppStore } from '../store/useAppStore';
+import syncService from '../lib/syncService';
 import '../global.css';
 
 export default function RootLayout() {
@@ -16,6 +17,17 @@ export default function RootLayout() {
     checkAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Start sync service when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Start hourly auto-sync
+      syncService.startAutoSync();
+      return () => {
+        syncService.stopAutoSync();
+      };
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated && segments[0] !== 'login' && segments[0] !== 'register') {

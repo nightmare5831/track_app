@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Equipment, Operation } from '../types';
 import Request from '../lib/request';
+import syncService from '../lib/syncService';
 
 interface User {
   id: string;
@@ -63,6 +64,7 @@ export const useAppStore = create<AppState>((set) => ({
   logout: async () => {
     await AsyncStorage.removeItem('authToken');
     await AsyncStorage.removeItem('user');
+    // Note: We keep cachedCredentials so user can login again offline
     set({
       token: null,
       user: null,
@@ -94,6 +96,15 @@ export const useAppStore = create<AppState>((set) => ({
 
   syncActiveOperations: async () => {
     try {
+      // Check if online before syncing
+      const isOnline = await syncService.isOnline();
+
+      if (!isOnline) {
+        // Offline: don't clear state, keep any locally stored active operation
+        console.log('Offline - skipping active operations sync');
+        return;
+      }
+
       // Fetch current active operation from server
       const response = await Request.Get('/operations/current');
 
