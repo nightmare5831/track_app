@@ -10,6 +10,7 @@ import syncService from '../lib/syncService';
 import { Card, Badge } from '../components/ui';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { EditOperationModal } from '../components/EditOperationModal';
+import { useLanguage } from '../contexts/LanguageContext';
 import { theme } from '../theme';
 import { Activity, User as UserType, Material, Operation, Equipment } from '../types';
 
@@ -17,6 +18,7 @@ export default function Home() {
   const router = useRouter();
   const user = useAppStore((state) => state.user);
   const logout = useAppStore((state) => state.logout);
+  const { t } = useLanguage();
   const activeOperations = useAppStore((state) => state.activeOperations);
   const setSelectedEquipment = useAppStore((state) => state.setSelectedEquipment);
   const addActiveOperation = useAppStore((state) => state.addActiveOperation);
@@ -167,10 +169,10 @@ export default function Home() {
     if (!operationId) return;
 
     Alert.alert(
-      'Stop Operation',
-      'Are you sure you want to stop this operation?',
+      t('operation.stop'),
+      t('msg.stopOperationConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
           text: 'Stop',
           style: 'destructive',
@@ -207,7 +209,7 @@ export default function Home() {
               }
             } catch (error) {
               console.error('Error stopping operation:', error);
-              Alert.alert('Error', 'Failed to stop operation');
+              Alert.alert(t('common.error'), t('msg.operationStopFailed'));
             }
           }
         }
@@ -227,16 +229,16 @@ export default function Home() {
       const response = await Request.Put(`/operations/${operationToEdit._id}`, updatedData);
 
       if (response.success) {
-        Alert.alert('Success', 'Operation updated successfully');
+        Alert.alert(t('common.success'), t('msg.operationUpdated'));
         setEditModalVisible(false);
         setOperationToEdit(null);
         fetchData();
       } else {
-        Alert.alert('Error', response.error || 'Failed to update operation');
+        Alert.alert(t('common.error'), response.error || t('msg.operationUpdateFailed'));
       }
     } catch (error) {
       console.error('Error updating operation:', error);
-      Alert.alert('Error', 'Failed to update operation');
+      Alert.alert(t('common.error'), t('msg.operationUpdateFailed'));
     }
   };
 
@@ -416,7 +418,7 @@ export default function Home() {
             <Image source={require('../assets/mine.png')} style={styles.logo} />
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>{APP_NAME}</Text>
-              {user && <Text style={styles.headerSubtitle}>Welcome, {user.name}</Text>}
+              {user && <Text style={styles.headerSubtitle}>{t('app.welcome')}, {user.name}</Text>}
             </View>
             <View style={styles.headerActions}>
               <LanguageToggle />
@@ -437,7 +439,7 @@ export default function Home() {
           {activeOperations.length > 0 && (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Current Activity</Text>
+                <Text style={styles.sectionTitle}>{t('operation.current')}</Text>
                 <Badge label={activeOperations.length.toString()} variant="primary" size="sm" />
               </View>
 
@@ -552,7 +554,7 @@ export default function Home() {
           {getGroupedStoppedOperations().length > 0 && (
             <>
               <View style={[styles.sectionHeader, { marginTop: activeOperations.length > 0 ? theme.spacing.lg : 0 }]}>
-                <Text style={styles.sectionTitle}>Recent Activities</Text>
+                <Text style={styles.sectionTitle}>{t('operation.recent')}</Text>
               </View>
 
               {getGroupedStoppedOperations().map((dateSection, dateIndex: number) => (
@@ -677,8 +679,8 @@ export default function Home() {
           {activeOperations.length === 0 && getGroupedStoppedOperations().length === 0 && !dataLoading && (
             <View style={styles.emptyState}>
               <Ionicons name="clipboard-outline" size={48} color={theme.colors.textSecondary} />
-              <Text style={styles.emptyStateText}>No operations yet</Text>
-              <Text style={styles.emptyStateSubtext}>Tap the button below to start tracking</Text>
+              <Text style={styles.emptyStateText}>{t('msg.noOperations')}</Text>
+              <Text style={styles.emptyStateSubtext}>{t('operation.add')}</Text>
             </View>
           )}
         </View>
@@ -690,7 +692,7 @@ export default function Home() {
         onPress={() => router.push('/equipment')}
       >
         <Ionicons name="add" size={24} color="#fff" />
-        <Text style={styles.floatingButtonText}>Add Operation</Text>
+        <Text style={styles.floatingButtonText}>{t('operation.add')}</Text>
       </TouchableOpacity>
 
       <EditOperationModal

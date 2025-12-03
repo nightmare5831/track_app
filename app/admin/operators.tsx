@@ -3,6 +3,7 @@ import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, Modal, S
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../../store/useAppStore';
+import { useLanguage } from '../../contexts/LanguageContext';
 import Request from '../../lib/request';
 import { Card, Button } from '../../components/ui';
 import { theme } from '../../theme';
@@ -23,6 +24,7 @@ interface Equipment {
 
 export default function OperatorsManagementScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const user = useAppStore((state) => state.user);
   const [operators, setOperators] = useState<User[]>([]);
   const [allEquipment, setAllEquipment] = useState<Equipment[]>([]);
@@ -85,12 +87,12 @@ export default function OperatorsManagementScreen() {
       });
 
       if (response.success) {
-        Alert.alert('Success', 'Equipment assigned successfully');
+        Alert.alert(t('common.success'), t('msg.equipmentAssigned'));
         setModalVisible(false);
         fetchData();
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to assign equipment');
+      Alert.alert(t('common.error'), error.message || t('msg.equipmentAssignFailed'));
     }
   };
 
@@ -101,7 +103,7 @@ export default function OperatorsManagementScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Operators & Equipment</Text>
+          <Text style={styles.headerTitle}>{t('admin.operators')} & {t('nav.equipment')}</Text>
         </View>
       </View>
 
@@ -125,7 +127,7 @@ export default function OperatorsManagementScreen() {
                     {operator.authorizedEquipment.length > 3 && (
                       <View style={styles.equipmentTag}>
                         <Text style={styles.equipmentTagText}>
-                          +{operator.authorizedEquipment.length - 3} more
+                          +{operator.authorizedEquipment.length - 3}
                         </Text>
                       </View>
                     )}
@@ -148,7 +150,7 @@ export default function OperatorsManagementScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                Assign Equipment - {selectedOperator?.name}
+                {t('admin.assignEquipment')} - {selectedOperator?.name}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color={theme.colors.text} />
@@ -157,7 +159,7 @@ export default function OperatorsManagementScreen() {
 
             <ScrollView style={styles.modalBody}>
               <Text style={styles.modalDescription}>
-                Select equipment this operator is authorized to use:
+                {t('admin.assignEquipment')}:
               </Text>
               {allEquipment.map((equipment) => {
                 const isSelected = selectedEquipmentIds.includes(equipment._id);
@@ -186,8 +188,8 @@ export default function OperatorsManagementScreen() {
             </ScrollView>
 
             <View style={styles.modalFooter}>
-              <Button title="Cancel" onPress={() => setModalVisible(false)} variant="secondary" />
-              <Button title="Save" onPress={handleSave} />
+              <Button title={t('common.cancel')} onPress={() => setModalVisible(false)} variant="secondary" />
+              <Button title={t('common.save')} onPress={handleSave} />
             </View>
           </View>
         </View>

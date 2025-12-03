@@ -3,6 +3,7 @@ import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, StyleShe
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/useAppStore';
+import { useLanguage } from '../contexts/LanguageContext';
 import Request from '../lib/request';
 import syncService from '../lib/syncService';
 import { Material, Activity, Equipment as EquipmentType } from '../types';
@@ -13,6 +14,7 @@ import { theme } from '../theme';
 
 export default function OperationScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const selectedEquipment = useAppStore((state) => state.selectedEquipment);
   const currentOperation = useAppStore((state) => state.currentOperation);
   const operationStartTime = useAppStore((state) => state.operationStartTime);
@@ -125,14 +127,14 @@ export default function OperationScreen() {
 
   const handleStartOperation = async () => {
     if (!selectedActivity) {
-      Alert.alert('Error', 'Please select an activity');
+      Alert.alert(t('common.error'), t('msg.selectActivity'));
       return;
     }
 
     const activity = activities.find(a => a._id === selectedActivity);
 
     if (!activity) {
-      Alert.alert('Error', 'Selected activity not found');
+      Alert.alert(t('common.error'), t('msg.activityNotFound'));
       return;
     }
 
@@ -300,7 +302,7 @@ export default function OperationScreen() {
             </View>
             <View style={styles.equipmentDetails}>
               <Text style={styles.equipmentName}>{selectedEquipment?.name}</Text>
-              <Text style={styles.equipmentSubtext}>{selectedEquipment?.category === 'loading' ? 'Loading Equipment' : 'Transport Equipment'}</Text>
+              <Text style={styles.equipmentSubtext}>{selectedEquipment?.category === 'loading' ? t('equipment.loading') : t('equipment.transport')}</Text>
             </View>
           </View>
         </View>
@@ -311,7 +313,7 @@ export default function OperationScreen() {
           <View style={styles.timerItem}>
             <View style={styles.timerLabelRow}>
               <Ionicons name="timer-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={styles.timerLabel}>Current Activity</Text>
+              <Text style={styles.timerLabel}>{t('operation.current')}</Text>
             </View>
             <Text style={styles.timerValue}>{formatTime(elapsedTime)}</Text>
           </View>
@@ -319,7 +321,7 @@ export default function OperationScreen() {
           <View style={styles.timerItem}>
             <View style={styles.timerLabelRow}>
               <Ionicons name="bar-chart-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={styles.timerLabel}>Total Today</Text>
+              <Text style={styles.timerLabel}>{t('admin.todaySummary')}</Text>
             </View>
             <Text style={styles.timerValue}>{formatTime(totalTime + elapsedTime)}</Text>
           </View>
@@ -331,28 +333,27 @@ export default function OperationScreen() {
           <View style={styles.content}>
             <Card padding="lg">
               <View style={styles.activeOperationCard}>
-                <Text style={styles.sectionTitle}>Active Operation</Text>
+                <Text style={styles.sectionTitle}>{t('operation.current')}</Text>
                 <Text style={styles.activityName}>
                   {activities.find(a => a._id === (typeof currentOperation.activity === 'string' ? currentOperation.activity : currentOperation.activity._id))?.name || 'Unknown'}
                 </Text>
                 <Button
+                  title={loading ? t('common.loading') : t('operation.stop')}
                   variant="danger"
                   onPress={handleStopOperation}
                   disabled={loading}
                   fullWidth
-                >
-                  {loading ? 'Stopping...' : 'Stop Activity'}
-                </Button>
+                />
               </View>
             </Card>
           </View>
         ) : (
           <View style={styles.content}>
-            <Text style={styles.sectionTitle}>Select Activity</Text>
+            <Text style={styles.sectionTitle}>{t('operation.selectActivity')}</Text>
 
             <SearchableSelect
-              label="Activity Type"
-              placeholder="Choose an activity"
+              label={t('operation.activity')}
+              placeholder={t('operation.selectActivity')}
               options={activityOptions}
               value={selectedActivity}
               onValueChange={setSelectedActivity}
@@ -360,8 +361,8 @@ export default function OperationScreen() {
 
             {showTruckField && (
               <SearchableSelect
-                label="Truck Being Loaded"
-                placeholder="Select truck"
+                label={t('operation.truckBeingLoaded')}
+                placeholder={t('operation.selectTruck')}
                 options={truckOptions}
                 value={selectedTruck}
                 onValueChange={setSelectedTruck}
@@ -370,8 +371,8 @@ export default function OperationScreen() {
 
             {showMaterialField && (
               <SearchableSelect
-                label="Material *"
-                placeholder="Select material"
+                label={t('operation.material') + ' *'}
+                placeholder={t('operation.selectMaterial')}
                 options={materialOptions}
                 value={selectedMaterial}
                 onValueChange={setSelectedMaterial}
@@ -380,8 +381,8 @@ export default function OperationScreen() {
 
             {showMiningFrontField && (
               <Input
-                label="Mining Front"
-                placeholder="Enter mining front"
+                label={t('operation.miningFront')}
+                placeholder={t('operation.miningFront')}
                 value={miningFront}
                 onChangeText={setMiningFront}
               />
@@ -389,8 +390,8 @@ export default function OperationScreen() {
 
             {showDestinationField && (
               <Input
-                label="Destination"
-                placeholder="Enter destination"
+                label={t('operation.destination')}
+                placeholder={t('operation.destination')}
                 value={destination}
                 onChangeText={setDestination}
               />
@@ -398,18 +399,18 @@ export default function OperationScreen() {
 
             {showActivityDetailField && (
               <ActivityDetailSelect
-                label="Reason/Detail *"
+                label={t('operation.details') + ' *'}
                 activity={selectedActivityObj}
                 value={selectedDetailReason}
                 onValueChange={setSelectedDetailReason}
-                placeholder="Select reason or add custom"
+                placeholder={t('operation.details')}
               />
             )}
 
             {!showActivityDetailField && (
               <Input
-                label="Activity Details (Optional)"
-                placeholder="Add any additional notes..."
+                label={t('operation.details') + ' (' + t('operation.optional') + ')'}
+                placeholder={t('operation.details')}
                 value={activityDetails}
                 onChangeText={setActivityDetails}
                 multiline
@@ -418,7 +419,7 @@ export default function OperationScreen() {
             )}
 
             <Button
-              title={loading ? 'Starting...' : 'Start Activity'}
+              title={loading ? t('common.loading') : t('operation.start')}
               variant="primary"
               onPress={handleStartOperation}
               disabled={loading || !selectedActivity}

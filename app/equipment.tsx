@@ -3,6 +3,7 @@ import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicat
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '../store/useAppStore';
+import { useLanguage } from '../contexts/LanguageContext';
 import Request from '../lib/request';
 import syncService from '../lib/syncService';
 import { Equipment } from '../types';
@@ -11,6 +12,7 @@ import { theme } from '../theme';
 
 export default function EquipmentScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const setSelectedEquipment = useAppStore((state) => state.setSelectedEquipment);
   const setCurrentOperation = useAppStore((state) => state.setCurrentOperation);
   const setOperationStartTime = useAppStore((state) => state.setOperationStartTime);
@@ -87,7 +89,7 @@ export default function EquipmentScreen() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Loading equipment...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </SafeAreaView>
     );
   }
@@ -99,14 +101,14 @@ export default function EquipmentScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Select Equipment</Text>
-          <Text style={styles.headerSubtitle}>Choose your machine</Text>
+          <Text style={styles.headerTitle}>{t('equipment.select')}</Text>
+          <Text style={styles.headerSubtitle}>{t('nav.equipment')}</Text>
         </View>
       </View>
 
       <View style={styles.content}>
         <Input
-          placeholder="Search by name..."
+          placeholder={t('common.search')}
           value={searchQuery}
           onChangeText={setSearchQuery}
           icon="search-outline"
@@ -118,7 +120,7 @@ export default function EquipmentScreen() {
             onPress={() => setFilterType('all')}
           >
             <Text style={[styles.tabText, filterType === 'all' && styles.tabTextActive]}>
-              All ({equipment.length})
+              {t('equipment.all')} ({equipment.length})
             </Text>
             {filterType === 'all' && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
@@ -127,7 +129,7 @@ export default function EquipmentScreen() {
             onPress={() => setFilterType('loading')}
           >
             <Text style={[styles.tabText, filterType === 'loading' && styles.tabTextActive]}>
-              Loading ({equipment.filter(e => e.category === 'loading').length})
+              {t('equipment.loading')} ({equipment.filter(e => e.category === 'loading').length})
             </Text>
             {filterType === 'loading' && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
@@ -136,7 +138,7 @@ export default function EquipmentScreen() {
             onPress={() => setFilterType('transport')}
           >
             <Text style={[styles.tabText, filterType === 'transport' && styles.tabTextActive]}>
-              Transport ({equipment.filter(e => e.category === 'transport').length})
+              {t('equipment.transport')} ({equipment.filter(e => e.category === 'transport').length})
             </Text>
             {filterType === 'transport' && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
@@ -145,7 +147,7 @@ export default function EquipmentScreen() {
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {(filterType === 'all' || filterType === 'loading') && loadingEquipment.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Loading Equipment</Text>
+              <Text style={styles.sectionTitle}>{t('equipment.loading')}</Text>
               {loadingEquipment.map((item) => (
                 <Card
                   key={item._id}
@@ -174,7 +176,7 @@ export default function EquipmentScreen() {
 
           {(filterType === 'all' || filterType === 'transport') && transportEquipment.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Transport Equipment</Text>
+              <Text style={styles.sectionTitle}>{t('equipment.transport')}</Text>
               {transportEquipment.map((item) => (
                 <Card
                   key={item._id}

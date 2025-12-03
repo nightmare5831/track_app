@@ -3,6 +3,8 @@ import { View, Text, Alert, ScrollView, KeyboardAvoidingView, Platform, StyleShe
 import { useRouter } from 'expo-router';
 import Request from '../lib/request';
 import { useAppStore } from '../store/useAppStore';
+import { useLanguage } from '../contexts/LanguageContext';
+import { LanguageToggle } from '../components/LanguageToggle';
 import { APP_NAME } from '../data';
 import { Button, Input } from '../components/ui';
 import { theme } from '../theme';
@@ -13,11 +15,12 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { t } = useLanguage();
   const setAuth = useAppStore((state) => state.setAuth);
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('msg.fillAllFields'));
       return;
     }
 
@@ -26,13 +29,13 @@ export default function Register() {
       const response = await Request.Post('/auth/register', { name, email, password });
 
       if (response.error) {
-        Alert.alert('Error', response.error);
+        Alert.alert(t('common.error'), response.error);
       } else {
         await setAuth(response.token, response.user);
         router.replace('/');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to register. Please try again.');
+      Alert.alert(t('common.error'), t('msg.registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -47,14 +50,17 @@ export default function Register() {
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.appTitle}>Create Account</Text>
-          <Text style={styles.subtitle}>Join {APP_NAME}</Text>
+          <Text style={styles.appTitle}>{t('auth.createAccount')}</Text>
+          <Text style={styles.subtitle}>{APP_NAME}</Text>
+          <View style={styles.languageToggle}>
+            <LanguageToggle />
+          </View>
         </View>
 
         <View style={styles.formContainer}>
           <Input
-            label="Full Name"
-            placeholder="John Smith"
+            label={t('auth.name')}
+            placeholder={t('auth.enterName')}
             value={name}
             onChangeText={setName}
             autoCapitalize="words"
@@ -62,8 +68,8 @@ export default function Register() {
           />
 
           <Input
-            label="Email"
-            placeholder="operator@mining.com"
+            label={t('auth.email')}
+            placeholder={t('auth.enterEmail')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -71,8 +77,8 @@ export default function Register() {
           />
 
           <Input
-            label="Password"
-            placeholder="Minimum 8 characters"
+            label={t('auth.password')}
+            placeholder={t('auth.enterPassword')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -80,7 +86,7 @@ export default function Register() {
           />
 
           <Button
-            title="Create Account"
+            title={t('auth.createAccount')}
             onPress={handleRegister}
             loading={loading}
             fullWidth
@@ -88,7 +94,7 @@ export default function Register() {
           />
 
           <Button
-            title="Already have an account? Sign In"
+            title={t('auth.alreadyHaveAccount') + ' ' + t('auth.signIn')}
             onPress={() => router.push('/login')}
             variant="ghost"
             fullWidth
@@ -96,7 +102,7 @@ export default function Register() {
           />
         </View>
 
-        <Text style={styles.footer}>Powered by SOLVEO Mining Technologies</Text>
+        <Text style={styles.footer}>{t('auth.poweredBy')}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -115,6 +121,9 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: 'center',
     marginBottom: theme.spacing.xl * 2,
+  },
+  languageToggle: {
+    marginTop: theme.spacing.md,
   },
   logoImage: {
     width: 100,

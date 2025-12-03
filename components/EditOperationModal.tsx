@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../contexts/LanguageContext';
 import { theme } from '../theme';
 import { Operation, Material, Equipment } from '../types';
 import SearchableSelect from './SearchableSelect';
@@ -22,6 +23,7 @@ export const EditOperationModal: React.FC<EditOperationModalProps> = ({
   onCancel,
   onSave,
 }) => {
+  const { t } = useLanguage();
   const [materialId, setMaterialId] = useState<string>('');
   const [truckId, setTruckId] = useState<string>('');
   const [miningFront, setMiningFront] = useState('');
@@ -92,7 +94,7 @@ export const EditOperationModal: React.FC<EditOperationModalProps> = ({
       <View style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Edit Operation</Text>
+            <Text style={styles.title}>{t('operation.edit')}</Text>
             <TouchableOpacity onPress={onCancel} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={theme.colors.text} />
             </TouchableOpacity>
@@ -103,12 +105,12 @@ export const EditOperationModal: React.FC<EditOperationModalProps> = ({
             <View style={styles.infoSection}>
               <View style={styles.infoRow}>
                 <Ionicons name="construct-outline" size={16} color={theme.colors.textSecondary} />
-                <Text style={styles.infoLabel}>Equipment:</Text>
+                <Text style={styles.infoLabel}>{t('nav.equipment')}:</Text>
                 <Text style={styles.infoValue}>{operationEquipment?.name || 'Unknown'}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Ionicons name="list-outline" size={16} color={theme.colors.textSecondary} />
-                <Text style={styles.infoLabel}>Activity:</Text>
+                <Text style={styles.infoLabel}>{t('operation.activity')}:</Text>
                 <Text style={styles.infoValue}>
                   {typeof operation?.activity === 'string' ? operation.activity : operation?.activity?.name || 'Unknown'}
                 </Text>
@@ -117,34 +119,34 @@ export const EditOperationModal: React.FC<EditOperationModalProps> = ({
 
             {/* Material Selection */}
             <SearchableSelect
-              label="Material"
+              label={t('operation.material')}
               options={materialOptions}
               value={materialId}
               onValueChange={setMaterialId}
-              placeholder="Select material (optional)"
+              placeholder={t('operation.selectMaterial') + ' (' + t('operation.optional') + ')'}
             />
 
             {/* Truck Selection (for loading equipment only) */}
             {isLoadingEquipment && (
               <SearchableSelect
-                label="Truck Being Loaded"
+                label={t('operation.truckBeingLoaded')}
                 options={truckOptions}
                 value={truckId}
                 onValueChange={setTruckId}
-                placeholder="Select truck (optional)"
+                placeholder={t('operation.selectTruck') + ' (' + t('operation.optional') + ')'}
               />
             )}
 
             {/* Mining Front */}
             <View style={styles.formGroup}>
               <Text style={styles.label}>
-                <Ionicons name="location-outline" size={14} color={theme.colors.text} /> Mining Front
+                <Ionicons name="location-outline" size={14} color={theme.colors.text} /> {t('operation.miningFront')}
               </Text>
               <TextInput
                 style={styles.input}
                 value={miningFront}
                 onChangeText={setMiningFront}
-                placeholder="e.g., Front A, Block 5"
+                placeholder={t('operation.miningFront')}
                 placeholderTextColor={theme.colors.textSecondary}
               />
             </View>
@@ -152,13 +154,13 @@ export const EditOperationModal: React.FC<EditOperationModalProps> = ({
             {/* Destination */}
             <View style={styles.formGroup}>
               <Text style={styles.label}>
-                <Ionicons name="flag-outline" size={14} color={theme.colors.text} /> Destination
+                <Ionicons name="flag-outline" size={14} color={theme.colors.text} /> {t('operation.destination')}
               </Text>
               <TextInput
                 style={styles.input}
                 value={destination}
                 onChangeText={setDestination}
-                placeholder="e.g., Stockpile 1, Dump Site B"
+                placeholder={t('operation.destination')}
                 placeholderTextColor={theme.colors.textSecondary}
               />
             </View>
@@ -166,7 +168,7 @@ export const EditOperationModal: React.FC<EditOperationModalProps> = ({
             {/* Distance */}
             <View style={styles.formGroup}>
               <Text style={styles.label}>
-                <Ionicons name="speedometer-outline" size={14} color={theme.colors.text} /> Distance (km)
+                <Ionicons name="speedometer-outline" size={14} color={theme.colors.text} /> {t('operation.distance')} (km)
               </Text>
               <TextInput
                 style={styles.input}
@@ -181,7 +183,7 @@ export const EditOperationModal: React.FC<EditOperationModalProps> = ({
             {/* Activity Details */}
             <View style={styles.formGroup}>
               <Text style={styles.label}>
-                <Ionicons name="document-text-outline" size={14} color={theme.colors.text} /> Additional Details
+                <Ionicons name="document-text-outline" size={14} color={theme.colors.text} /> {t('operation.details')}
               </Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
@@ -201,14 +203,14 @@ export const EditOperationModal: React.FC<EditOperationModalProps> = ({
               style={[styles.button, styles.cancelButton]}
               onPress={onCancel}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.saveButton]}
               onPress={handleSave}
             >
               <Ionicons name="checkmark" size={20} color="#ffffff" />
-              <Text style={styles.saveButtonText}>Save Changes</Text>
+              <Text style={styles.saveButtonText}>{t('common.saveChanges')}</Text>
             </TouchableOpacity>
           </View>
         </View>

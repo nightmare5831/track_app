@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Request from '../lib/request';
 import syncService from '../lib/syncService';
 import { useAppStore } from '../store/useAppStore';
+import { useLanguage } from '../contexts/LanguageContext';
+import { LanguageToggle } from '../components/LanguageToggle';
 import { APP_NAME } from '../data';
 import { Button, Input } from '../components/ui';
 import { theme } from '../theme';
@@ -16,11 +18,12 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { t } = useLanguage();
   const setAuth = useAppStore((state) => state.setAuth);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('msg.fillAllFields'));
       return;
     }
 
@@ -33,7 +36,7 @@ export default function Login() {
         const response = await Request.Post('/auth/login', { email, password });
 
         if (response.error) {
-          Alert.alert('Error', response.error);
+          Alert.alert(t('common.error'), response.error);
         } else {
           // Cache credentials for offline login (hash password for security)
           const hashedCredentials = {
@@ -60,14 +63,14 @@ export default function Login() {
             await setAuth(cached.token, cached.user);
             router.replace('/');
           } else {
-            Alert.alert('Error', 'Invalid credentials. Please check your email and password.');
+            Alert.alert(t('common.error'), t('msg.invalidCredentials'));
           }
         } else {
-          Alert.alert('Offline', 'No cached credentials found. Please connect to the network for your first login.');
+          Alert.alert(t('msg.offline'), t('msg.noCachedCredentials'));
         }
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to login. Please try again.');
+      Alert.alert(t('common.error'), t('msg.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -83,13 +86,16 @@ export default function Login() {
             resizeMode="contain"
           />
           <Text style={styles.appTitle}>{APP_NAME}</Text>
-          <Text style={styles.subtitle}>Mining Operations Management</Text>
+          <Text style={styles.subtitle}>{t('app.name')}</Text>
+          <View style={styles.languageToggle}>
+            <LanguageToggle />
+          </View>
         </View>
 
         <View style={styles.formContainer}>
           <Input
-            label="Email"
-            placeholder="operator@mining.com"
+            label={t('auth.email')}
+            placeholder={t('auth.enterEmail')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -97,8 +103,8 @@ export default function Login() {
           />
 
           <Input
-            label="Password"
-            placeholder="Enter your password"
+            label={t('auth.password')}
+            placeholder={t('auth.enterPassword')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -106,7 +112,7 @@ export default function Login() {
           />
 
           <Button
-            title="Sign In"
+            title={t('auth.signIn')}
             onPress={handleLogin}
             loading={loading}
             fullWidth
@@ -114,7 +120,7 @@ export default function Login() {
           />
 
           <Button
-            title="Create Account"
+            title={t('auth.createAccount')}
             onPress={() => router.push('/register')}
             variant="ghost"
             fullWidth
@@ -122,7 +128,7 @@ export default function Login() {
           />
         </View>
 
-        <Text style={styles.footer}>Powered by SOLVEO Mining Technologies</Text>
+        <Text style={styles.footer}>{t('auth.poweredBy')}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -141,6 +147,9 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: 'center',
     marginBottom: theme.spacing.xl * 2,
+  },
+  languageToggle: {
+    marginTop: theme.spacing.md,
   },
   logoImage: {
     width: 100,

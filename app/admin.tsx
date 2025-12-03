@@ -224,23 +224,23 @@ export default function AdminScreen() {
 
           {/* Today's Summary */}
           <Card variant="flat" padding="md">
-            <Text style={styles.sectionTitle}>Today's Summary</Text>
+            <Text style={styles.sectionTitle}>{t('admin.todaySummary')}</Text>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryValue}>{stats?.operationsToday || 0}</Text>
-                <Text style={styles.summaryLabel}>Total Operations</Text>
+                <Text style={styles.summaryLabel}>{t('admin.totalOperations')}</Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryValue}>{stats?.completedToday || 0}</Text>
-                <Text style={styles.summaryLabel}>Completed</Text>
+                <Text style={styles.summaryLabel}>{t('common.confirm')}</Text>
               </View>
             </View>
           </Card>
 
           {/* Operators Status */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Operators Status</Text>
+            <Text style={styles.sectionTitle}>{t('admin.operatorsStatus')}</Text>
             <Badge label={operators.length.toString()} variant="primary" size="sm" />
           </View>
 
@@ -275,7 +275,7 @@ export default function AdminScreen() {
                     <View style={styles.inactivityBadge}>
                       <Ionicons name="time-outline" size={12} color={theme.colors.error} />
                       <Text style={styles.inactivityText}>
-                        Inactive for {operatorStatus.inactiveDuration.formatted}
+                        {t('admin.inactiveFor')} {operatorStatus.inactiveDuration.formatted}
                       </Text>
                     </View>
                   )}
@@ -283,7 +283,7 @@ export default function AdminScreen() {
 
                 <View style={styles.operatorRight}>
                   <Text style={styles.operatorOpsCount}>{operatorStatus.todayOperations}</Text>
-                  <Text style={styles.operatorOpsLabel}>ops today</Text>
+                  <Text style={styles.operatorOpsLabel}>{t('admin.activeOps')}</Text>
                 </View>
               </View>
             </Card>
@@ -292,20 +292,20 @@ export default function AdminScreen() {
           {operators.length === 0 && (
             <View style={styles.emptyState}>
               <Ionicons name="people-outline" size={48} color={theme.colors.textSecondary} />
-              <Text style={styles.emptyStateText}>No operators found</Text>
+              <Text style={styles.emptyStateText}>{t('msg.noData')}</Text>
             </View>
           )}
 
           {/* Performance Summary */}
           {performance && performance.totalOperations > 0 && (
             <>
-              <Text style={styles.sectionTitle}>Performance Summary</Text>
+              <Text style={styles.sectionTitle}>{t('admin.performanceSummary')}</Text>
               <Card variant="flat" padding="md">
-                <Text style={styles.performanceLabel}>Total Operations: {performance.totalOperations}</Text>
+                <Text style={styles.performanceLabel}>{t('admin.totalOperations')}: {performance.totalOperations}</Text>
 
                 {Object.keys(performance.tripsByEquipment || {}).length > 0 && (
                   <>
-                    <Text style={styles.performanceSubtitle}>Trips by Equipment</Text>
+                    <Text style={styles.performanceSubtitle}>{t('admin.tripsByEquipment')}</Text>
                     {Object.entries(performance.tripsByEquipment).slice(0, 5).map(([equip, count]: [string, any]) => (
                       <View key={equip} style={styles.performanceRow}>
                         <Text style={styles.performanceEquip}>{equip}</Text>
