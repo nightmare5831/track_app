@@ -9,6 +9,7 @@ import Request from '../lib/request';
 import syncService from '../lib/syncService';
 import { Card, Badge } from '../components/ui';
 import { LanguageToggle } from '../components/LanguageToggle';
+import { EditOperationModal } from '../components/EditOperationModal';
 import { theme } from '../theme';
 import { Activity, User as UserType, Material, Operation, Equipment } from '../types';
 
@@ -27,9 +28,12 @@ export default function Home() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [stoppedOperations, setStoppedOperations] = useState<Operation[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [hasSyncedOperations, setHasSyncedOperations] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [operationToEdit, setOperationToEdit] = useState<Operation | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
@@ -63,10 +67,11 @@ export default function Home() {
 
       if (isOnline) {
         // Online: fetch from server and cache
-        const [activitiesRes, usersRes, materialsRes, operationsRes] = await Promise.all([
+        const [activitiesRes, usersRes, materialsRes, equipmentRes, operationsRes] = await Promise.all([
           Request.Get('/activities'),
           Request.Get('/users'),
           Request.Get('/materials'),
+          Request.Get('/equipment'),
           Request.Get('/operations')
         ]);
 
@@ -78,6 +83,9 @@ export default function Home() {
         if (materialsRes.success) {
           setMaterials(materialsRes.data);
           await syncService.cacheMaterials(materialsRes.data);
+        }
+        if (equipmentRes.success) {
+          setEquipment(equipmentRes.data);
         }
         if (operationsRes.success) {
           // Filter stopped operations (those with endTime)
@@ -207,43 +215,29 @@ export default function Home() {
     );
   };
 
-  const handleEditOperation = async (operation: Operation) => {
-    const operationId = operation._id;
-    if (!operationId) return;
+  const handleEditOperation = (operation: Operation) => {
+    setOperationToEdit(operation);
+    setEditModalVisible(true);
+  };
 
-    // Get current values
-    const currentDetails = operation.activityDetails || '';
+  const handleSaveEdit = async (updatedData: Partial<Operation>) => {
+    if (!operationToEdit || !operationToEdit._id) return;
 
-    Alert.prompt(
-      'Edit Operation',
-      'Update operation details:',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Save',
-          onPress: async (newDetails) => {
-            try {
-              const response = await Request.Put(`/operations/${operationId}`, {
-                activityDetails: newDetails
-              });
+    try {
+      const response = await Request.Put(`/operations/${operationToEdit._id}`, updatedData);
 
-              if (response.success) {
-                Alert.alert('Success', 'Operation updated successfully');
-                fetchData();
-              }
-            } catch (error) {
-              console.error('Error updating operation:', error);
-              Alert.alert('Error', 'Failed to update operation');
-            }
-          }
-        }
-      ],
-      'plain-text',
-      currentDetails
-    );
+      if (response.success) {
+        Alert.alert('Success', 'Operation updated successfully');
+        setEditModalVisible(false);
+        setOperationToEdit(null);
+        fetchData();
+      } else {
+        Alert.alert('Error', response.error || 'Failed to update operation');
+      }
+    } catch (error) {
+      console.error('Error updating operation:', error);
+      Alert.alert('Error', 'Failed to update operation');
+    }
   };
 
   // Group stopped operations by date, then by equipment+activity+material
@@ -501,6 +495,25 @@ export default function Home() {
                             </>
                           )}
                         </View>
+                        {(activeOp.operation.miningFront || activeOp.operation.destination || activeOp.operation.activityDetails) && (
+                          <View style={styles.operationDetailsRow}>
+                            {activeOp.operation.miningFront && (
+                              <Text style={styles.operationDetail}>
+                                <Ionicons name="location-outline" size={10} color={theme.colors.textSecondary} /> {activeOp.operation.miningFront}
+                              </Text>
+                            )}
+                            {activeOp.operation.destination && (
+                              <Text style={styles.operationDetail}>
+                                <Ionicons name="flag-outline" size={10} color={theme.colors.textSecondary} /> {activeOp.operation.destination}
+                              </Text>
+                            )}
+                            {activeOp.operation.activityDetails && (
+                              <Text style={styles.operationDetail} numberOfLines={1}>
+                                {activeOp.operation.activityDetails}
+                              </Text>
+                            )}
+                          </View>
+                        )}
                       </View>
                       <View style={styles.operationRight}>
                         <View style={styles.operationTime}>
@@ -611,6 +624,25 @@ export default function Home() {
                             </>
                           )}
                         </View>
+                        {(operation.miningFront || operation.destination || operation.activityDetails) && (
+                          <View style={styles.operationDetailsRow}>
+                            {operation.miningFront && (
+                              <Text style={styles.operationDetail}>
+                                <Ionicons name="location-outline" size={10} color={theme.colors.textSecondary} /> {operation.miningFront}
+                              </Text>
+                            )}
+                            {operation.destination && (
+                              <Text style={styles.operationDetail}>
+                                <Ionicons name="flag-outline" size={10} color={theme.colors.textSecondary} /> {operation.destination}
+                              </Text>
+                            )}
+                            {operation.activityDetails && (
+                              <Text style={styles.operationDetail} numberOfLines={1}>
+                                {operation.activityDetails}
+                              </Text>
+                            )}
+                          </View>
+                        )}
                       </View>
                       <View style={styles.operationRight}>
                         <View style={styles.operationTime}>
@@ -660,6 +692,18 @@ export default function Home() {
         <Ionicons name="add" size={24} color="#fff" />
         <Text style={styles.floatingButtonText}>Add Operation</Text>
       </TouchableOpacity>
+
+      <EditOperationModal
+        visible={editModalVisible}
+        operation={operationToEdit}
+        materials={materials}
+        equipment={equipment}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setOperationToEdit(null);
+        }}
+        onSave={handleSaveEdit}
+      />
     </SafeAreaView>
   );
 }
@@ -842,6 +886,17 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     color: theme.colors.warning,
     fontWeight: theme.fontWeight.bold,
+  },
+  operationDetailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
+  },
+  operationDetail: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
   },
   dateHeader: {
     fontSize: theme.fontSize.sm,

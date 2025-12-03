@@ -6,6 +6,7 @@ import { useAppStore } from '../store/useAppStore';
 import Request from '../lib/request';
 import { Card, Badge } from '../components/ui';
 import { LanguageToggle } from '../components/LanguageToggle';
+import { useLanguage } from '../contexts/LanguageContext';
 import { theme } from '../theme';
 
 interface DashboardStats {
@@ -37,6 +38,7 @@ export default function AdminScreen() {
   const router = useRouter();
   const user = useAppStore((state) => state.user);
   const logout = useAppStore((state) => state.logout);
+  const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [operators, setOperators] = useState<OperatorStatus[]>([]);
   const [performance, setPerformance] = useState<any>(null);
@@ -117,7 +119,7 @@ export default function AdminScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -127,8 +129,8 @@ export default function AdminScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Admin Dashboard</Text>
-          <Text style={styles.headerSubtitle}>Welcome, {user?.name}</Text>
+          <Text style={styles.headerTitle}>{t('admin.dashboard')}</Text>
+          <Text style={styles.headerSubtitle}>{t('app.welcome')}, {user?.name}</Text>
         </View>
         <View style={styles.headerActions}>
           <LanguageToggle />
@@ -150,14 +152,14 @@ export default function AdminScreen() {
               style={styles.managementButton}
             >
               <Ionicons name="construct-outline" size={20} color="#ffffff" />
-              <Text style={styles.managementButtonText}>Equipment</Text>
+              <Text style={styles.managementButtonText}>{t('admin.equipment')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push('/admin/operators')}
               style={styles.managementButton}
             >
               <Ionicons name="people-outline" size={20} color="#ffffff" />
-              <Text style={styles.managementButtonText}>Operators</Text>
+              <Text style={styles.managementButtonText}>{t('admin.operators')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.managementButtons}>
@@ -166,14 +168,14 @@ export default function AdminScreen() {
               style={styles.managementButton}
             >
               <Ionicons name="list-outline" size={20} color="#ffffff" />
-              <Text style={styles.managementButtonText}>Activities</Text>
+              <Text style={styles.managementButtonText}>{t('admin.activities')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push('/reports')}
               style={styles.managementButton}
             >
               <Ionicons name="bar-chart-outline" size={20} color="#ffffff" />
-              <Text style={styles.managementButtonText}>Reports</Text>
+              <Text style={styles.managementButtonText}>{t('reports.title')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -184,7 +186,7 @@ export default function AdminScreen() {
                 <View style={styles.statContent}>
                   <Ionicons name="play-circle" size={24} color={theme.colors.primary} />
                   <Text style={styles.statValue}>{stats?.activeOperations || 0}</Text>
-                  <Text style={styles.statLabel}>Active</Text>
+                  <Text style={styles.statLabel}>{t('admin.activeOps')}</Text>
                 </View>
               </Card>
             </View>
@@ -194,7 +196,7 @@ export default function AdminScreen() {
                 <View style={styles.statContent}>
                   <Ionicons name="alert-circle" size={24} color={theme.colors.error} />
                   <Text style={styles.statValue}>{stats?.inactivityAlerts || 0}</Text>
-                  <Text style={styles.statLabel}>Alerts</Text>
+                  <Text style={styles.statLabel}>{t('admin.alerts')}</Text>
                 </View>
               </Card>
             </View>
@@ -204,7 +206,7 @@ export default function AdminScreen() {
                 <View style={styles.statContent}>
                   <Ionicons name="people" size={24} color={theme.colors.success} />
                   <Text style={styles.statValue}>{stats?.activeOperators || 0}</Text>
-                  <Text style={styles.statLabel}>Working</Text>
+                  <Text style={styles.statLabel}>{t('admin.working')}</Text>
                 </View>
               </Card>
             </View>
@@ -214,7 +216,7 @@ export default function AdminScreen() {
                 <View style={styles.statContent}>
                   <Ionicons name="pause-circle" size={24} color={theme.colors.textSecondary} />
                   <Text style={styles.statValue}>{stats?.idleOperators || 0}</Text>
-                  <Text style={styles.statLabel}>Idle</Text>
+                  <Text style={styles.statLabel}>{t('admin.idle')}</Text>
                 </View>
               </Card>
             </View>
