@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import Request from '../lib/request';
 import { useAppStore } from '../store/useAppStore';
 import { useLanguage } from '../contexts/LanguageContext';
-import { LanguageToggle } from '../components/LanguageToggle';
 import { APP_NAME } from '../data';
 import { Button, Input } from '../components/ui';
 import { theme } from '../theme';
@@ -52,9 +51,6 @@ export default function Register() {
           />
           <Text style={styles.appTitle}>{t('auth.createAccount')}</Text>
           <Text style={styles.subtitle}>{APP_NAME}</Text>
-          <View style={styles.languageToggle}>
-            <LanguageToggle />
-          </View>
         </View>
 
         <View style={styles.formContainer}>
@@ -121,9 +117,6 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: 'center',
     marginBottom: theme.spacing.xl * 2,
-  },
-  languageToggle: {
-    marginTop: theme.spacing.md,
   },
   logoImage: {
     width: 100,

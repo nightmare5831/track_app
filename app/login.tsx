@@ -6,7 +6,6 @@ import Request from '../lib/request';
 import syncService from '../lib/syncService';
 import { useAppStore } from '../store/useAppStore';
 import { useLanguage } from '../contexts/LanguageContext';
-import { LanguageToggle } from '../components/LanguageToggle';
 import { APP_NAME } from '../data';
 import { Button, Input } from '../components/ui';
 import { theme } from '../theme';
@@ -87,9 +86,6 @@ export default function Login() {
           />
           <Text style={styles.appTitle}>{APP_NAME}</Text>
           <Text style={styles.subtitle}>{t('app.name')}</Text>
-          <View style={styles.languageToggle}>
-            <LanguageToggle />
-          </View>
         </View>
 
         <View style={styles.formContainer}>
@@ -147,9 +143,6 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: 'center',
     marginBottom: theme.spacing.xl * 2,
-  },
-  languageToggle: {
-    marginTop: theme.spacing.md,
   },
   logoImage: {
     width: 100,
