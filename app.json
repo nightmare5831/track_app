@@ -4,7 +4,7 @@
     "slug": "hand-mine-control",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/mine.png",
     "userInterfaceStyle": "automatic",
     "scheme": "handminecontrol",
     "newArchEnabled": false,
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/mine.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.handminecontrol.app",

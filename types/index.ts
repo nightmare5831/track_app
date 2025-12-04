@@ -11,6 +11,7 @@ export interface Equipment {
   category: 'loading' | 'transport';
   capacity?: number;
   status: 'active' | 'inactive' | 'maintenance';
+  maintenanceType?: string;
   createdAt: string;
   updatedAt: string;
 }

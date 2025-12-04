@@ -656,7 +656,7 @@ export default function Home() {
                             style={styles.actionButton}
                             onPress={() => handleCreateSameOperation(operation)}
                           >
-                            <Ionicons name="copy-outline" size={20} color={theme.colors.success} />
+                            <Image source={require('../assets/restart.png')} style={styles.restartIcon} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.actionButton}
@@ -829,6 +829,11 @@ const styles = StyleSheet.create({
     padding: 0,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  restartIcon: {
+    width: 20,
+    height: 20,
+    tintColor: theme.colors.success,
   },
   stopButton: {
     // No special styling needed - icon color handles the visual

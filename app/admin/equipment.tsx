@@ -13,6 +13,7 @@ interface Equipment {
   category: 'loading' | 'transport';
   capacity?: number;
   status: 'active' | 'inactive' | 'maintenance';
+  maintenanceType?: string;
 }
 
 export default function EquipmentManagementScreen() {
@@ -26,7 +27,8 @@ export default function EquipmentManagementScreen() {
     name: '',
     category: 'loading' as 'loading' | 'transport',
     capacity: '',
-    status: 'active' as 'active' | 'inactive' | 'maintenance'
+    status: 'active' as 'active' | 'inactive' | 'maintenance',
+    maintenanceType: ''
   });
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export default function EquipmentManagementScreen() {
 
   const openCreateModal = () => {
     setEditingEquipment(null);
-    setFormData({ name: '', category: 'loading', capacity: '', status: 'active' });
+    setFormData({ name: '', category: 'loading', capacity: '', status: 'active', maintenanceType: '' });
     setModalVisible(true);
   };
 
@@ -63,7 +65,8 @@ export default function EquipmentManagementScreen() {
       name: item.name,
       category: item.category,
       capacity: item.capacity?.toString() || '',
-      status: item.status
+      status: item.status,
+      maintenanceType: item.maintenanceType || ''
     });
     setModalVisible(true);
   };
@@ -79,7 +82,8 @@ export default function EquipmentManagementScreen() {
         name: formData.name.trim(),
         category: formData.category,
         capacity: formData.capacity ? parseFloat(formData.capacity) : undefined,
-        status: formData.status
+        status: formData.status,
+        maintenanceType: formData.maintenanceType.trim() || undefined
       };
 
       if (editingEquipment) {
@@ -158,6 +162,11 @@ export default function EquipmentManagementScreen() {
                   {item.category} • {item.status}
                   {item.capacity && ` • ${item.capacity}${item.category === 'loading' ? 'm³' : 'tons'}`}
                 </Text>
+                {item.status === 'maintenance' && item.maintenanceType && (
+                  <Text style={styles.equipmentMaintenanceType}>
+                    {item.maintenanceType}
+                  </Text>
+                )}
               </View>
               <TouchableOpacity onPress={() => openEditModal(item)} style={styles.iconButton}>
                 <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
@@ -245,6 +254,15 @@ export default function EquipmentManagementScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {formData.status === 'maintenance' && (
+                <Input
+                  label="Maintenance Type"
+                  value={formData.maintenanceType}
+                  onChangeText={(text) => setFormData({ ...formData, maintenanceType: text })}
+                  placeholder="e.g., Engine repair, Tire replacement, Oil change"
+                />
+              )}
             </ScrollView>
 
             <View style={styles.modalFooter}>
@@ -320,6 +338,12 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     color: theme.colors.textSecondary,
     marginTop: 2,
+  },
+  equipmentMaintenanceType: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.warning,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   iconButton: {
     padding: theme.spacing.sm,
