@@ -831,8 +831,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   restartIcon: {
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     tintColor: theme.colors.success,
   },
   stopButton: {
